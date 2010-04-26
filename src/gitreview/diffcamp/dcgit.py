@@ -6,6 +6,7 @@
 This module provides functions for interacting with git commits
 created by the apply_diffcamp script.
 """
+import re
 
 import gitreview.git as git
 import gitreview.git.svn as git_svn
@@ -262,15 +263,20 @@ def apply_diff(repo, diff, apply_to, parents=None, strip=None, prefix=None):
         if directory is None:
             directory = ''
 
-    # Diffcamp unfortunately doesn't store path names consistently in the
-    # diffs.  In diffs submitted from git, the paths are always "a/<old-path>"
-    # and "b/<new-path>".  However, diffs submitted via subversion tend to just
-    # have "<old-path>" and "<new-path>".
-    #
-    # If this diff appears to have been submitted via git, add 1 to the
-    # strip value.
-    if diff.sourceControlSystem == SOURCE_CONTROL_GIT:
-        strip += 1
+    # Older versions of diffcamp used to include the "a/" and "b/" prefixes
+    # output by "git diff".  Newer versions (created after rE208095) don't.
+    # Ideally we should parse the patch to see if it needs this.  For now, just
+    # check the date.  This won't be 100% accurate, but is easier to implement
+    # for now.
+    rE208095_date = 1261036800
+    if diff.dateCreated < rE208095_date:
+        if diff.sourceControlSystem == SOURCE_CONTROL_GIT:
+            strip += 1
+
+    # When diffcamp was changed to strip out the "a/" and "b/" prefixes
+    # output by git, it also was changed to strip out "/dev/null" file paths.
+    # This results in invalid patches.  Fix this problem.
+    patch = re.sub(r'(?m)^(\+\+\+|---) $', r'\1 /dev/null', patch)
 
     # Apply the patch to create a new tree object
     #
@@ -424,6 +430,15 @@ class RevisionApplier(object):
         diff = self.diffsToApply[0]
 
         # Compute the list of commits onto which we will try applying this diff
+        #
+        # TODO: Recent diffs also include a "sourceControlBaseRevision"
+        # parameter, containing the svn revision ID or git SHA1 that the diff
+        # was computed against.  We should try to prefer this revision if it is
+        # valid.  (This unfortunately may not always be useful for git
+        # repositories.  For git repositories it might be more useful to have
+        # the SHA1 of the tree, rather than of the commit.  We're more likely
+        # to have a matching tree ID than commit ID, since the commit also
+        # includes the commit date.)
         onto_list = []
         if self.onto:
             onto_list.append(self.onto)
