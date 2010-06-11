@@ -4,6 +4,9 @@
 #
 import httplib
 import json
+import os
+
+import gitreview.proc as proc
 
 import constants
 from exceptions import *
@@ -20,11 +23,12 @@ def _make_http_request(path):
 
 class Diff(object):
     def __init__(self, revision, dict):
+        self.all_params = dict
         params = ['id', 'dateCreated', 'dateModified', 'revisionID',
                   'originalText', 'lines', 'parsedCommitMessage',
                   'sourceControlSystem', 'sourceMachine', 'sourcePath',
                   'checksum', 'sourceControlBaseRevision', 'autoProcessed',
-                  'requireRTLTest', 'sourceControlPath']
+                  'requireRTLTest', 'sourceControlPath', 'description']
         for param in params:
             if dict.has_key(param):
                 setattr(self, param, dict[param])
@@ -34,16 +38,12 @@ class Diff(object):
         self.revision = revision
 
     def getPatch(self):
-        path = '/intern/diffcamp/patch.php?id=%d' % (self.id,)
-        (status, reason, body) = _make_http_request(path)
-        if status != 200:
-            raise Exception('failed to get patch for diff %s: %s %s' %
-                            (self.id, status, reason))
-        return body
+        return get_patch(self.id)
 
 
 class Revision(object):
     def __init__(self, dict):
+        self.all_params = dict
         params = ['id', 'status', 'ownerID', 'name', 'ownerName',
                   'dateCreated', 'dateModified', 'summary', 'notes',
                   'testPlan', 'revert', 'bugId', 'tracTicketID', 'projectID',
@@ -51,7 +51,6 @@ class Revision(object):
                   'repositoryID', 'dateCommitted', 'svnBlameRevision',
                   'bugzillaID', 'platformImpact', 'mobileImpact', 'perfImpact',
                   'gitRevision', 'fbid', 'diffs']
-
         for param in params:
             if dict.has_key(param):
                 setattr(self, param, dict[param])
@@ -109,3 +108,20 @@ def get_revision(rev_id):
 
     dict = json.loads(body)
     return Revision(dict)
+
+
+def get_arc_path():
+    # Join WWW_PATH and ARC_PATH each time get_arc_path() is called,
+    # so that changes made to WWW_PATH are reflected in subsequent calls
+    return os.path.join(constants.WWW_PATH, constants.ARC_PATH)
+
+
+def get_patch(diff_id):
+    cmd = [get_arc_path(), 'patch', '--show', '--diff-id', str(diff_id)]
+    return proc.run_simple_cmd(cmd)
+    path = '/intern/diffcamp/patch.php?id=%d' % (diff_id,)
+    (status, reason, body) = _make_http_request(path)
+    if status != 200:
+        raise Exception('failed to get patch for diff %s: %s %s' %
+                        (diff_id, status, reason))
+    return body
