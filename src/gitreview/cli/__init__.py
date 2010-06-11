@@ -118,8 +118,15 @@ class CLI(object):
         self.setupReadline()
         try:
             while not self.stop:
-                line = self.readline()
-                rc = self.runCommand(line)
+                try:
+                    line = self.readline()
+                    rc = self.runCommand(line)
+                except KeyboardInterrupt:
+                    # Don't exit on Ctrl-C, just abort the current command
+                    # Print a newline, so that the next prompt will always
+                    # start on its own line.
+                    self.output(newline=True)
+                    continue
         finally:
             self.cleanupReadline()
 
