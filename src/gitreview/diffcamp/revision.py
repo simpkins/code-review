@@ -111,17 +111,9 @@ def get_revision(rev_id):
 
 
 def get_arc_path():
-    # Join WWW_PATH and ARC_PATH each time get_arc_path() is called,
-    # so that changes made to WWW_PATH are reflected in subsequent calls
-    return os.path.join(constants.WWW_PATH, constants.ARC_PATH)
+    return constants.ARC_PATH
 
 
 def get_patch(diff_id):
     cmd = [get_arc_path(), 'patch', '--show', '--diff-id', str(diff_id)]
     return proc.run_simple_cmd(cmd)
-    path = '/intern/diffcamp/patch.php?id=%d' % (diff_id,)
-    (status, reason, body) = _make_http_request(path)
-    if status != 200:
-        raise Exception('failed to get patch for diff %s: %s %s' %
-                        (diff_id, status, reason))
-    return body

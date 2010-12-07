@@ -72,6 +72,9 @@ class Options(optparse.OptionParser):
         self.add_option('-d', '--diffcamp', action='store', dest='diffcamp',
                         default=None, type='int',
                         help='Review the specified diffcamp revision')
+        self.add_option('--arc',
+                        action='store', dest='arc', default=None,
+                        help='Path to the arc program')
         self.add_option('--onto',
                         action='store', dest='onto', metavar='COMMIT',
                         default=None,
@@ -117,6 +120,10 @@ class Options(optparse.OptionParser):
     def parseArgv(self, argv):
         # parse the options
         (self.__options, args) = self.parse_args(argv[1:])
+
+        # Set the arc path
+        if self.__options.arc is not None:
+            diffcamp.constants.ARC_PATH = self.__options.arc
 
         # --onto is only valid with --diffcamp
         if self.__options.onto is not None and self.__options.diffcamp is None:
