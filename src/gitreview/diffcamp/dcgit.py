@@ -160,9 +160,9 @@ def _compute_patch_paths(repo, diff, apply_to):
         # diffcamp tools always set sourceControlPath, except when working in a
         # pure git repository.
         #
-        # For now, assume strip=0 and no prefix.  (This should be correct for
+        # For now, assume strip=1 and no prefix.  (This should be correct for
         # pure git repositories.)
-        return (0, None)
+        return (1, None)
 
     # All of our DiffCamp tools currently set diff.sourceControlPath to a
     # Subversion URL.  Try to find the subversion URL for this repository.
@@ -178,9 +178,9 @@ def _compute_patch_paths(repo, diff, apply_to):
 
     if not repo_url:
         # Doh.  We couldn't find a SVN url for the current repository.
-        # Maybe it's a pure git repo.  Just return strip=0 and no prefix for
+        # Maybe it's a pure git repo.  Just return strip=1 and no prefix for
         # now.  This might not be correct, though.
-        return (0, None)
+        return (1, None)
 
     # Great, we have both the repo's SVN URL and the diff's URL.
     # We don't really care about the scheme part of the URL, so strip it off
@@ -207,7 +207,7 @@ def _compute_patch_paths(repo, diff, apply_to):
             # diff refers to the repository subdirectory.  We should reject an
             # attempt to apply a diff if it affects files not contained in this
             # repository.
-            strip = len(repo_parts) - len(diff_parts)
+            strip = 1 + len(repo_parts) - len(diff_parts)
             return (strip, None)
         else:
             # Hmm.  The diff URL and the repository URL don't share a common
@@ -220,7 +220,7 @@ def _compute_patch_paths(repo, diff, apply_to):
             # repo_parts is a prefix of diff_parts.  We need to add
             # the remainder of diff_parts when applying the diff.
             prefix = '/'.join(diff_parts[len(repo_parts):])
-            return (0, prefix)
+            return (1, prefix)
         else:
             # The diff URL and the repository URL don't share a common prefix.
             raise DiffcampGitError('repository SVN url (%s) and diff SVN '

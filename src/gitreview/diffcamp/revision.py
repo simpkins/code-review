@@ -115,5 +115,5 @@ def get_arc_path():
 
 
 def get_patch(diff_id):
-    cmd = [get_arc_path(), 'patch', '--show', '--diff-id', str(diff_id)]
+    cmd = [get_arc_path(), 'export', '--git', '--diff', str(diff_id)]
     return proc.run_simple_cmd(cmd)
