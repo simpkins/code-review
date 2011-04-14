@@ -40,8 +40,11 @@ import sys
 
 import gitreview.git as git
 import gitreview.review as review
-import gitreview.diffcamp as diffcamp
-import gitreview.diffcamp.dcgit as dcgit
+
+import arcanist.gitapply
+
+#import gitreview.diffcamp as diffcamp
+#import gitreview.diffcamp.dcgit as dcgit
 
 RETCODE_SUCCESS = 0
 RETCODE_ARGUMENTS_ERROR = 1
@@ -69,16 +72,13 @@ class Options(optparse.OptionParser):
         self.add_option('-c', '--commit',
                         action='store', dest='commit', default=None,
                         help='Diff the specified commit against its parent')
-        self.add_option('-d', '--diffcamp', action='store', dest='diffcamp',
-                        default=None, type='int',
-                        help='Review the specified diffcamp revision')
-        self.add_option('--arc',
-                        action='store', dest='arc', default=None,
-                        help='Path to the arc program')
+        self.add_option('-d', '--differential', action='store',
+                        dest='differential', default=None, type='int',
+                        help='Review the specified differential revision')
         self.add_option('--onto',
                         action='store', dest='onto', metavar='COMMIT',
                         default=None,
-                        help='Apply diffcamp patches onto the specified '
+                        help='Apply differential patches onto the specified '
                              'commit')
         self.add_option('--cached',
                         action='store_true', dest='cached', default=False,
@@ -121,20 +121,17 @@ class Options(optparse.OptionParser):
         # parse the options
         (self.__options, args) = self.parse_args(argv[1:])
 
-        # Set the arc path
-        if self.__options.arc is not None:
-            diffcamp.constants.ARC_PATH = self.__options.arc
-
-        # --onto is only valid with --diffcamp
-        if self.__options.onto is not None and self.__options.diffcamp is None:
+        # --onto is only valid with --differential
+        if (self.__options.onto is not None and
+            self.__options.differential is None):
             raise OptionsError('--onto is only valid when used with '
-                               '--diffcamp')
+                               '--differential')
 
         # Parse the commit arguments
         if self.__options.commit is not None:
             # If --commit was specified, diff that commit against its parent
-            if self.__options.diffcamp is not None:
-                msg = '--commit and --diffcamp are mutually exclusive'
+            if self.__options.differential is not None:
+                msg = '--commit and --differential are mutually exclusive'
                 raise OptionsError(msg)
             if self.__options.cached:
                 msg = '--commit and --cached are mutually exclusive'
@@ -146,18 +143,20 @@ class Options(optparse.OptionParser):
 
             self.parentCommit = self.__options.commit + '^'
             self.childCommit = self.__options.commit
-        elif self.__options.diffcamp is not None:
-            # If --diffcamp was specified, review that diffcamp revision
+        elif self.__options.differential is not None:
+            # If --differential was specified,
+            # review that differential revision
             if self.__options.cached:
-                msg = '--diffcamp and --cached are mutually exclusive'
+                msg = '--differential and --cached are mutually exclusive'
                 raise OptionsError(msg)
             if args:
                 msg = ('additional commit arguments may not be specified '
-                       'with --diffcamp')
+                       'with --differential')
                 raise OptionsError(msg)
 
             # We can't compute the parent and child commits now.
-            # The code will not use them if it sees that self.diffcamp is set.
+            # The code will not use them if it sees that self.differential is
+            # set.
             self.parentCommit = None
             self.childCommit = None
         else:
@@ -192,8 +191,9 @@ def warning_msg(msg):
 
 
 def setup_diffcamp_review(repo, options):
-    rev_id = options.diffcamp
+    rev_id = options.differential
     print 'Checking for diffs from revision %s' % (rev_id,)
+    raise Exception('TBD')
     applier = dcgit.RevisionApplier(repo, rev_id, onto=options.onto,
                                     log=sys.stdout)
 
@@ -206,14 +206,15 @@ def setup_diffcamp_review(repo, options):
     else:
         print '  No new diffs to apply'
 
-    # Compute the list of commits for this diffcamp revision
+    # Compute the list of commits for this differential revision
     # TODO: It would be nicer to save this information in the RevisionApplier,
     # rather than having to re-compute the list here.
     dc_commit_chain = dcgit.get_dc_commit_chain(repo, rev_id)
 
     # Use the last commit in the chain as the child
     child = dc_commit_chain[-1].commit.sha1
-    # As the parent, use the commit that the the diffcamp patch was applied to
+    # As the parent, use the commit that the the differential patch was
+    # applied to
     parent = dc_commit_chain[-1].appliedOnto
 
     diff = repo.getDiff(parent, child)
@@ -249,7 +250,7 @@ def main(argv):
     repo = git.get_repo(git_dir=options.gitDir,
                         working_dir=options.workTree)
 
-    if options.diffcamp:
+    if options.differential:
         try:
             rev = setup_diffcamp_review(repo, options)
         except (diffcamp.NoSuchRevisionError, git.PatchFailedError,
