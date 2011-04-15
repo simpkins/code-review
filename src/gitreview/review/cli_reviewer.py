@@ -28,25 +28,25 @@ class FileIndexArgument(cli.Argument):
         try:
             value = int(arg)
         except ValueError:
-            return self.__parsePath(cli_obj, arg)
+            return self._parse_path(cli_obj, arg)
 
         if value < 0:
             msg = 'file index may not be negative'
             raise cli.CommandArgumentsError(msg)
-        if value >= cli_obj.review.getNumEntries():
+        if value >= cli_obj.review.get_num_entries():
             msg = 'file index must be less than %s' % \
-                    (cli_obj.review.getNumEntries())
+                    (cli_obj.review.get_num_entries())
             raise cli.CommandArgumentsError(msg)
 
         return value
 
-    def __parsePath(self, cli_obj, arg):
+    def _parse_path(self, cli_obj, arg):
         basename_matches = []
         basename_partial_matches = []
         endswith_matches = []
 
         n = -1
-        for entry in cli_obj.review.getEntries():
+        for entry in cli_obj.review.get_entries():
             n += 1
             path = entry.getPath()
             if arg == path:
@@ -76,7 +76,7 @@ class FileIndexArgument(cli.Argument):
 
         if len(matches) > 1:
             if len(basename_matches) > 1:
-                paths = [cli_obj.review.getEntry(n).getPath()
+                paths = [cli_obj.review.get_entry(n).getPath()
                          for n in basename_matches]
                 msg = 'ambiguous path name:\n  ' + '\n  '.join(paths)
                 raise cli.CommandArgumentsError(msg)
@@ -86,7 +86,7 @@ class FileIndexArgument(cli.Argument):
     def complete(self, cli_obj, text):
         matches = []
 
-        for entry in cli_obj.review.getEntries():
+        for entry in cli_obj.review.get_entries():
             path = entry.getPath()
             basename = os.path.basename(path)
             if path.startswith(text):
@@ -106,7 +106,7 @@ class AliasArgument(cli.Argument):
 
     def complete(self, cli_obj, text):
         # Compute the list of aliases that match
-        matches = [alias for alias in cli_obj.review.commitAliases
+        matches = [alias for alias in cli_obj.review.commit_aliases
                    if alias.startswith(text)]
 
         # If only 1 alias matches, append a space
@@ -123,7 +123,7 @@ class CommitArgument(cli.Argument):
         return arg
 
     def complete(self, cli_obj, text):
-        return cli_obj.completeCommit(text)
+        return cli_obj.complete_commit(text)
 
 
 class CommitFileArgument(cli.Argument):
@@ -139,11 +139,11 @@ class CommitFileArgument(cli.Argument):
     When parsed, returns a tuple of (commit, path).
     """
     def __init__(self, name, **kwargs):
-        self.defaultCommit = None
+        self.default_commit = None
         passthrough_args = {}
         for kwname, kwvalue in kwargs.items():
             if kwname == 'default_commit':
-                self.defaultCommit = kwvalue
+                self.default_commit = kwvalue
             else:
                 passthrough_args[kwname] = kwvalue
         cli.Argument.__init__(self, name, **passthrough_args)
@@ -157,20 +157,20 @@ class CommitFileArgument(cli.Argument):
             # commit).
             #
             # If this appears to be a commit name, assume it is one.
-            if cli_obj.review.isRevisionOrPath(parts[0]):
+            if cli_obj.review.is_revision_or_path(parts[0]):
                 # Treat the path as the name of the current entry
                 # TODO: we need a better way of handling the exception if
                 # there is no current entry..  Currently raising an exception
                 # from parse() results in the full error traceback being
                 # printed to the user.
-                current_entry = cli_obj.review.getCurrentEntry()
+                current_entry = cli_obj.review.get_current_entry()
                 commit = parts[0]
-                if (cli_obj.review.expandCommitName(commit) ==
-                    cli_obj.review.expandCommitName('parent')):
+                if (cli_obj.review.expand_commit_name(commit) ==
+                    cli_obj.review.expand_commit_name('parent')):
                     # If the commit name is the parent, use the old path.
                     path = current_entry.old.path
-                elif (cli_obj.review.expandCommitName(commit) ==
-                    cli_obj.review.expandCommitName('child')):
+                elif (cli_obj.review.expand_commit_name(commit) ==
+                    cli_obj.review.expand_commit_name('child')):
                     # If the commit name is the child, use the new path.
                     path = current_entry.new.path
                 else:
@@ -183,7 +183,7 @@ class CommitFileArgument(cli.Argument):
             else:
                 # This is not a commit.
                 # Assume it is a path in the default commit.
-                return (self.defaultCommit, parts[0])
+                return (self.default_commit, parts[0])
 
         return parts
 
@@ -201,20 +201,20 @@ class CommitFileArgument(cli.Argument):
             # commit name without the colon, in case the user wants to supply
             # just the commit name with no path.  Hitting tab again will then
             # add the colon.
-            matches = cli_obj.completeCommit(parts[0], append=':',
-                                             append_exact=True)
+            matches = cli_obj.complete_commit(parts[0], append=':',
+                                              append_exact=True)
 
             # It also might be the start of a path name in the default commit.
-            if self.defaultCommit:
-                file_matches = cli_obj.completeFilename(self.defaultCommit,
-                                                        parts[0])
+            if self.default_commit:
+                file_matches = cli_obj.complete_filename(self.default_commit,
+                                                         parts[0])
                 matches += file_matches
 
             return matches
         else:
             # We have two components.  The first is a commit name/alias.
             # The second is the start of a path within that commit.
-            matches = cli_obj.completeFilename(parts[0], parts[1])
+            matches = cli_obj.complete_filename(parts[0], parts[1])
             return [parts[0] + ':' + m for m in matches]
 
     def __splitArg(self, cli_obj, text):
@@ -250,7 +250,7 @@ class ExitCommand(cli.ArgCommand):
                             default=0, min=0, max=255, optional=True)]
         cli.ArgCommand.__init__(self, args, help)
 
-    def runParsed(self, cli_obj, name, args):
+    def run_parsed(self, cli_obj, name, args):
         cli_obj.stop = True
         return args.exit_code
 
@@ -261,8 +261,8 @@ class ListCommand(cli.ArgCommand):
         args = []
         cli.ArgCommand.__init__(self, args, help)
 
-    def runParsed(self, cli_obj, name, args):
-        entries = cli_obj.review.getEntries()
+    def run_parsed(self, cli_obj, name, args):
+        entries = cli_obj.review.get_entries()
 
         # Compute the width needed for the index field
         num_entries = len(entries)
@@ -289,13 +289,13 @@ class NextCommand(cli.ArgCommand):
         args = []
         cli.ArgCommand.__init__(self, args, help)
 
-    def runParsed(self, cli_obj, name, args):
+    def run_parsed(self, cli_obj, name, args):
         try:
             cli_obj.review.next()
         except IndexError:
-            cli_obj.outputError('no more files')
+            cli_obj.output_error('no more files')
 
-        cli_obj.indexUpdated()
+        cli_obj.index_updated()
 
 
 class PrevCommand(cli.ArgCommand):
@@ -304,13 +304,13 @@ class PrevCommand(cli.ArgCommand):
         args = []
         cli.ArgCommand.__init__(self, args, help)
 
-    def runParsed(self, cli_obj, name, args):
+    def run_parsed(self, cli_obj, name, args):
         try:
             cli_obj.review.prev()
         except IndexError:
-            cli_obj.outputError('no more files')
+            cli_obj.output_error('no more files')
 
-        cli_obj.indexUpdated()
+        cli_obj.index_updated()
 
 
 class GotoCommand(cli.ArgCommand):
@@ -319,13 +319,13 @@ class GotoCommand(cli.ArgCommand):
         args = [FileIndexArgument('index', hr_name='index or path')]
         cli.ArgCommand.__init__(self, args, help)
 
-    def runParsed(self, cli_obj, name, args):
+    def run_parsed(self, cli_obj, name, args):
         try:
             cli_obj.review.goto(args.index)
         except IndexError:
-            cli_obj.outputError('invalid index %s' % (args.index,))
+            cli_obj.output_error('invalid index %s' % (args.index,))
 
-        cli_obj.indexUpdated()
+        cli_obj.index_updated()
 
 
 class DiffCommand(cli.ArgCommand):
@@ -346,21 +346,21 @@ class DiffCommand(cli.ArgCommand):
         if args.path3 is not None:
             # 3 arguments were specified.
             # Diff those files
-            file1 = cli_obj.review.getFile(*args.path1)
-            file2 = cli_obj.review.getFile(*args.path2)
-            file3 = cli_obj.review.getFile(*args.path3)
+            file1 = cli_obj.review.get_file(*args.path1)
+            file2 = cli_obj.review.get_file(*args.path2)
+            file3 = cli_obj.review.get_file(*args.path3)
             return (file1, file2, file3)
 
         if args.path2 is not None:
             # 2 arguments were specified.
             # Diff those files
-            file1 = cli_obj.review.getFile(*args.path1)
-            file2 = cli_obj.review.getFile(*args.path2)
+            file1 = cli_obj.review.get_file(*args.path1)
+            file2 = cli_obj.review.get_file(*args.path2)
             return (file1, file2)
 
         # If we're still here, 0 or 1 arguments were specified.
         # We're going to need the current entry to figure out what to do.
-        current_entry = cli_obj.review.getCurrentEntry()
+        current_entry = cli_obj.review.get_current_entry()
 
         if args.path1 is not None:
             # 1 argument was specified.
@@ -370,15 +370,15 @@ class DiffCommand(cli.ArgCommand):
                 # Raise an error if this file doesn't exist in the child.
                 name = 'child:%s' % (current_entry.old.path,)
                 raise git.NoSuchBlobError(name)
-            file1 = cli_obj.review.getFile(*args.path1)
-            file2 = cli_obj.review.getFile('child', current_entry.new.path)
+            file1 = cli_obj.review.get_file(*args.path1)
+            file2 = cli_obj.review.get_file('child', current_entry.new.path)
             return (file1, file2)
 
         # If we're still here, no arguments were specified.
         if current_entry.status == git.diff.Status.DELETED:
             # If the current file is a deleted file,
             # diff the file in the parent against /dev/null
-            file1 = cli_obj.review.getFile('parent',
+            file1 = cli_obj.review.get_file('parent',
                                            current_entry.old.path)
             file2 = '/dev/null'
             return (file1, file2)
@@ -386,39 +386,39 @@ class DiffCommand(cli.ArgCommand):
             # If the current file is a new file, diff /dev/null
             # against the file in the child.
             file1 = '/dev/null'
-            file2 = cli_obj.review.getFile('child', current_entry.new.path)
+            file2 = cli_obj.review.get_file('child', current_entry.new.path)
             return (file1, file2)
         else:
             # Diff the parent file against the child file
-            file1 = cli_obj.review.getFile('parent', current_entry.old.path)
-            file2 = cli_obj.review.getFile('child', current_entry.new.path)
+            file1 = cli_obj.review.get_file('parent', current_entry.old.path)
+            file2 = cli_obj.review.get_file('child', current_entry.new.path)
             return (file1, file2)
 
-    def runParsed(self, cli_obj, name, args):
+    def run_parsed(self, cli_obj, name, args):
         try:
             files = self.__getDiffFiles(cli_obj, args)
         except NoCurrentEntryError, ex:
-            cli_obj.outputError(ex)
+            cli_obj.output_error(ex)
             return 1
         except git.NoSuchBlobError, ex:
             # Convert the "blob" error message to "file", just to be more
             # user-friendly for developers who aren't familiar with git
             # terminology.
-            cli_obj.outputError('no such file %r' % (ex.name,))
+            cli_obj.output_error('no such file %r' % (ex.name,))
             return 1
         except git.NotABlobError, ex:
-            cli_obj.outputError('not a file %r' % (ex.name,))
+            cli_obj.output_error('not a file %r' % (ex.name,))
             return 1
 
-        cmd = cli_obj.getDiffCommand(*files)
+        cmd = cli_obj.get_diff_command(*files)
         try:
             p = subprocess.Popen(cmd)
         except OSError, ex:
-            cli_obj.outputError('failed to invoke %r: %s' % (cmd[0], ex))
+            cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
             return 1
 
         ret = p.wait()
-        cli_obj.setSuggestedCommand('next')
+        cli_obj.set_suggested_command('next')
         return ret
 
 
@@ -429,13 +429,13 @@ class ViewCommand(cli.ArgCommand):
                                    default_commit='child')]
         cli.ArgCommand.__init__(self, args, help)
 
-    def runParsed(self, cli_obj, name, args):
+    def run_parsed(self, cli_obj, name, args):
         if args.path is None:
             # If no path was specified, pick the path from the current entry
             try:
-                current_entry = cli_obj.review.getCurrentEntry()
+                current_entry = cli_obj.review.get_current_entry()
             except NoCurrentEntryError, ex:
-                cli_obj.outputError(ex)
+                cli_obj.output_error(ex)
                 return 1
 
             # If this is a deleted file, view the old version
@@ -450,26 +450,26 @@ class ViewCommand(cli.ArgCommand):
             commit, path = args.path
 
         try:
-            file = cli_obj.review.getFile(commit, path)
+            file = cli_obj.review.get_file(commit, path)
         except git.NoSuchBlobError, ex:
             # Convert the "blob" error message to "file", just to be more
             # user-friendly for developers who aren't familiar with git
             # terminology.
-            cli_obj.outputError('no such file %r' % (ex.name,))
+            cli_obj.output_error('no such file %r' % (ex.name,))
             return 1
         except git.NotABlobError, ex:
-            cli_obj.outputError('not a file %r' % (ex.name,))
+            cli_obj.output_error('not a file %r' % (ex.name,))
             return 1
 
-        cmd = cli_obj.getViewCommand(file)
+        cmd = cli_obj.get_view_command(file)
         try:
             p = subprocess.Popen(cmd)
         except OSError, ex:
-            cli_obj.outputError('failed to invoke %r: %s' % (cmd[0], ex))
+            cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
             return 1
 
         ret = p.wait()
-        cli_obj.setSuggestedCommand('next')
+        cli_obj.set_suggested_command('next')
         return ret
 
 
@@ -480,27 +480,27 @@ class AliasCommand(cli.ArgCommand):
                 CommitArgument('commit', optional=True)]
         cli.ArgCommand.__init__(self, args, help)
 
-    def runParsed(self, cli_obj, name, args):
+    def run_parsed(self, cli_obj, name, args):
         if args.alias is None:
             # Show all aliases
-            sorted_aliases = sorted(cli_obj.review.commitAliases.iteritems(),
+            sorted_aliases = sorted(cli_obj.review.commit_aliases.iteritems(),
                                     key=lambda x: x[0])
             for (alias, commit) in sorted_aliases:
                 cli_obj.output('%s: %s'% (alias, commit))
         elif args.commit is None:
             # Show the specified alias
             try:
-                commit = cli_obj.review.commitAliases[args.alias]
+                commit = cli_obj.review.commit_aliases[args.alias]
                 cli_obj.output('%s: %s'% (args.alias, commit))
             except KeyError:
-                cli_obj.outputError('unknown alias %r' % (args.alias,))
+                cli_obj.output_error('unknown alias %r' % (args.alias,))
                 return 1
         else:
             # Set the specified alias
             try:
-                cli_obj.review.setCommitAlias(args.alias, args.commit)
+                cli_obj.review.set_commit_alias(args.alias, args.commit)
             except git.NoSuchObjectError, ex:
-                cli_obj.outputError(ex)
+                cli_obj.output_error(ex)
                 return 1
 
         return 0
@@ -512,11 +512,11 @@ class UnaliasCommand(cli.ArgCommand):
         args = [AliasArgument('alias')]
         cli.ArgCommand.__init__(self, args, help)
 
-    def runParsed(self, cli_obj, name, args):
+    def run_parsed(self, cli_obj, name, args):
         try:
-            cli_obj.review.unsetCommitAlias(args.alias)
+            cli_obj.review.unset_commit_alias(args.alias)
         except KeyError:
-            cli_obj.outputError('unknown alias %r' % (args.alias,))
+            cli_obj.output_error('unknown alias %r' % (args.alias,))
             return 1
         return 0
 
@@ -532,14 +532,14 @@ class RepoCache(object):
     """
     def __init__(self, repo):
         self.__repo = repo
-        self.clearCaches()
+        self.clear_caches()
 
-    def getRefNames(self):
+    def get_ref_names(self):
         if self.__refNames is None:
             self.__refNames = self.__repo.getRefNames()
         return self.__refNames[:]
 
-    def listTree(self, commit, dirname=None):
+    def list_tree(self, commit, dirname=None):
         key = (commit, dirname)
         try:
             return self.__treeCache[key]
@@ -548,7 +548,7 @@ class RepoCache(object):
             self.__treeCache[key] = result
             return result
 
-    def clearCaches(self):
+    def clear_caches(self):
         self.__refNames = None
         self.__treeCache = {}
 
@@ -559,27 +559,27 @@ class CliReviewer(cli.CLI):
 
         # Internal state
         self.review = review
-        self.repoCache = RepoCache(self.review.repo)
-        self.configureCommands()
+        self.repo_cache = RepoCache(self.review.repo)
+        self.configure_commands()
 
         # Commands
-        self.addCommand('exit', ExitCommand())
-        self.addCommand('quit', ExitCommand())
-        self.addCommand('list', ListCommand())
-        self.addCommand('files', ListCommand())
-        self.addCommand('next', NextCommand())
-        self.addCommand('prev', PrevCommand())
-        self.addCommand('goto', GotoCommand())
-        self.addCommand('diff', DiffCommand())
-        self.addCommand('view', ViewCommand())
-        self.addCommand('alias', AliasCommand())
-        self.addCommand('unalias', UnaliasCommand())
-        self.addCommand('help', cli.HelpCommand())
-        self.addCommand('?', cli.HelpCommand())
+        self.add_command('exit', ExitCommand())
+        self.add_command('quit', ExitCommand())
+        self.add_command('list', ListCommand())
+        self.add_command('files', ListCommand())
+        self.add_command('next', NextCommand())
+        self.add_command('prev', PrevCommand())
+        self.add_command('goto', GotoCommand())
+        self.add_command('diff', DiffCommand())
+        self.add_command('view', ViewCommand())
+        self.add_command('alias', AliasCommand())
+        self.add_command('unalias', UnaliasCommand())
+        self.add_command('help', cli.HelpCommand())
+        self.add_command('?', cli.HelpCommand())
 
-        self.indexUpdated()
+        self.index_updated()
 
-    def configureCommands(self):
+    def configure_commands(self):
         # TODO: It would be nice to support a ~/.gitreviewrc file, too, or
         # maybe even storing configuration via git-config.
 
@@ -596,20 +596,20 @@ class CliReviewer(cli.CLI):
             viewer_str = os.environ['EDITOR']
 
         if viewer_str is None:
-            self.viewCommand = ['vi']
+            self.view_command = ['vi']
         else:
             tokenizer = cli.tokenize.SimpleTokenizer(viewer_str)
-            self.viewCommand = tokenizer.getTokens()
+            self.view_command = tokenizer.get_tokens()
 
         # Check the following environment variables
         # to see which program we should use to view files.
         if os.environ.has_key('GIT_REVIEW_DIFF'):
             diff_str = os.environ['GIT_REVIEW_DIFF']
             tokenizer = cli.tokenize.SimpleTokenizer(diff_str)
-            self.diffCommand = tokenizer.getTokens()
+            self.diff_command = tokenizer.get_tokens()
         elif os.environ.has_key('DISPLAY'):
             # If the user appears to be using X, default to tkdiff
-            self.diffCommand = ['tkdiff']
+            self.diff_command = ['tkdiff']
         else:
             # vimdiff is very convenient for viewing
             # side-by-side diffs in a terminal.
@@ -617,30 +617,30 @@ class CliReviewer(cli.CLI):
             # We could default to plain old 'diff' if people don't like
             # vimdiff.  However, I figure most people will configure their
             # preferred diff program with GIT_REVIEW_DIFF.
-            self.diffCommand = ['vimdiff', '-R']
+            self.diff_command = ['vimdiff', '-R']
 
-    def invokeCommand(self, cmd_name, args, line):
+    def invoke_command(self, cmd_name, args, line):
         # Before every command, clear our repository cache
-        self.repoCache.clearCaches()
+        self.repo_cache.clear_caches()
 
-        # Invoke CLI.invokeCommand() to perform the real work
-        cli.CLI.invokeCommand(self, cmd_name, args, line)
+        # Invoke CLI.invoke_command() to perform the real work
+        cli.CLI.invoke_command(self, cmd_name, args, line)
 
-    def handleEmptyLine(self):
-        self.runCommand(self.suggestedCommand)
+    def handle_empty_line(self):
+        self.run_command(self.suggested_command)
 
-    def setSuggestedCommand(self, mode):
+    def set_suggested_command(self, mode):
         if mode == 'lint':
             # TODO: once we support lint, set the suggested command to 'lint'
             # for files that we know how to run lint on.
-            # self.suggestedCommand = 'lint'
-            self.setSuggestedCommand('review')
+            # self.suggested_command = 'lint'
+            self.set_suggested_command('review')
         elif mode == 'review':
-            entry = self.review.getCurrentEntry()
+            entry = self.review.get_current_entry()
             if entry.status == git.diff.Status.DELETED:
-                self.setSuggestedCommand('next')
+                self.set_suggested_command('next')
             elif entry.status == git.diff.Status.ADDED:
-                self.suggestedCommand = 'view'
+                self.suggested_command = 'view'
             elif entry.status == git.diff.Status.UNMERGED:
                 # TODO: We could probably do better here.
                 if self.review.diff.parent == git.COMMIT_INDEX:
@@ -648,34 +648,34 @@ class CliReviewer(cli.CLI):
                     # 2 sides of the merge.  This won't work if the user's diff
                     # command doesn's support 3-way diffs.  It also breaks if
                     # the file only exists on one side of the merge.
-                    self.suggestedCommand = 'diff :1 :2 :3'
+                    self.suggested_command = 'diff :1 :2 :3'
                 else:
                     # Suggest a 3-way diff between the parent and the
                     # 2 sides of the merge.  This won't work if the user's diff
                     # command doesn's support 3-way diffs.  It also breaks if
                     # the file only exists on one side of the merge.
-                    self.suggestedCommand = 'diff parent :2 :3'
+                    self.suggested_command = 'diff parent :2 :3'
             else:
-                self.suggestedCommand = 'diff'
+                self.suggested_command = 'diff'
         elif mode == 'next':
-            if self.review.hasNext():
-                self.suggestedCommand = 'next'
+            if self.review.has_next():
+                self.suggested_command = 'next'
             else:
-                self.setSuggestedCommand('quit')
+                self.set_suggested_command('quit')
         elif mode == 'quit':
-            self.suggestedCommand = 'quit'
+            self.suggested_command = 'quit'
         else:
             assert False
 
-        self.updatePrompt()
+        self.update_prompt()
 
-    def indexUpdated(self):
+    def index_updated(self):
         try:
-            entry = self.review.getCurrentEntry()
+            entry = self.review.get_current_entry()
         except NoCurrentEntryError:
             # Should only happen when there are no files to review.
             msg = 'No files to review'
-            self.setSuggestedCommand('quit')
+            self.set_suggested_command('quit')
             return
 
         msg = 'Now processing %s file ' % (entry.status.getDescription(),)
@@ -685,22 +685,22 @@ class CliReviewer(cli.CLI):
         else:
             msg += entry.getPath()
         self.output(msg)
-        # setSuggestedCommand() will automatically update the prompt
-        self.setSuggestedCommand('lint')
+        # set_suggested_command() will automatically update the prompt
+        self.set_suggested_command('lint')
 
-    def updatePrompt(self):
+    def update_prompt(self):
         try:
-            path = self.review.getCurrentEntry().getPath()
+            path = self.review.get_current_entry().getPath()
             basename = os.path.basename(path)
-            self.prompt = '%s [%s]> ' % (basename, self.suggestedCommand)
+            self.prompt = '%s [%s]> ' % (basename, self.suggested_command)
         except NoCurrentEntryError:
-            self.prompt = '[%s]> ' % (self.suggestedCommand)
+            self.prompt = '[%s]> ' % (self.suggested_command)
 
-    def getViewCommand(self, path):
-        return self.viewCommand + [str(path)]
+    def get_view_command(self, path):
+        return self.view_command + [str(path)]
 
-    def getDiffCommand(self, path1, path2, path3=None):
-        cmd = self.diffCommand + [str(path1), str(path2)]
+    def get_diff_command(self, path1, path2, path3=None):
+        cmd = self.diff_command + [str(path1), str(path2)]
         if path3 != None:
             cmd.append(str(path3))
         return cmd
@@ -708,12 +708,12 @@ class CliReviewer(cli.CLI):
     def run(self):
         return self.loop()
 
-    def completeCommit(self, text, append=' ', append_exact=False):
+    def complete_commit(self, text, append=' ', append_exact=False):
         """
         Complete a commit name or commit alias.
         """
         matches = []
-        ref_names = self.repoCache.getRefNames()
+        ref_names = self.repo_cache.get_ref_names()
         # Also match against the special COMMIT_WD and COMMIT_INDEX names.
         ref_names.extend([git.COMMIT_INDEX, git.COMMIT_WD])
         for ref in ref_names:
@@ -729,7 +729,7 @@ class CliReviewer(cli.CLI):
                     break
                 ref = parts[1]
 
-        for alias in self.review.getCommitAliases():
+        for alias in self.review.get_commit_aliases():
             if alias.startswith(text):
                 matches.append(alias)
 
@@ -744,7 +744,7 @@ class CliReviewer(cli.CLI):
 
         return matches
 
-    def completeFilename(self, commit, text):
+    def complete_filename(self, commit, text):
         """
         Complete a filename within the given commit.
         """
@@ -760,10 +760,10 @@ class CliReviewer(cli.CLI):
             basename = text[idx+1:]
 
         # Expand commit name aliases
-        commit = self.review.expandCommitName(commit)
+        commit = self.review.expand_commit_name(commit)
         matches = []
         try:
-            tree_entries = self.repoCache.listTree(commit, dirname)
+            tree_entries = self.repo_cache.list_tree(commit, dirname)
         except OSError, ex:
             return []
 

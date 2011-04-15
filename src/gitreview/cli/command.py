@@ -37,10 +37,10 @@ class HelpCommand(Command):
         else:
             cmd_name = args[1]
             try:
-                cmd = cli_obj.getCommand(cmd_name)
+                cmd = cli_obj.get_command(cmd_name)
                 cmd.help(cli_obj, cmd_name, args[1:], line)
             except (NoSuchCommandError, AmbiguousCommandError), ex:
-                cli_obj.outputError(ex)
+                cli_obj.output_error(ex)
 
     def help(self, cli_obj, name, args, line):
         cli_obj.output('%s [<command>]' % (args[0],))
@@ -49,5 +49,5 @@ class HelpCommand(Command):
 
     def complete(self, cli_obj, name, args, text):
         if len(args) == 1:
-            return cli_obj.completeCommand(text, add_space=True)
+            return cli_obj.complete_command(text, add_space=True)
         return []
