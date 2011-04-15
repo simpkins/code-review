@@ -53,6 +53,11 @@ def is_git_dir(path):
     if not os.path.isdir(os.path.join(path, 'refs')):
         return False
 
+    # Check for the HEAD file
+    # TODO: git also verifies that HEAD looks valid.
+    if not os.path.exists(os.path.join(path, 'HEAD')):
+        return False
+
     return True
 
 
