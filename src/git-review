@@ -85,11 +85,11 @@ class Options(optparse.OptionParser):
                         help='Diff against the index instead of the working '
                              'tree')
         self.add_option('--git-dir',
-                        action='store', dest='gitDir',
+                        action='store', dest='git_dir',
                         metavar='DIRECTORY', default=None,
                         help='Path to the git repository directory')
         self.add_option('--work-tree',
-                        action='store', dest='workTree',
+                        action='store', dest='work_tree',
                         metavar='DIRECTORY', default=None,
                         help='Path to the git repository working tree')
         self.add_option('-?', '--help',
@@ -104,10 +104,10 @@ class Options(optparse.OptionParser):
         # line options is encountered.
         raise OptionsError(msg)
 
-    def printUsage(self, file = sys.stdout):
+    def print_usage(self, file = sys.stdout):
         self.print_usage(file = file)
 
-    def printHelp(self, file = sys.stdout):
+    def print_help(self, file = sys.stdout):
         self.print_help(file = file)
 
     def __getattr__(self, name):
@@ -117,7 +117,7 @@ class Options(optparse.OptionParser):
         # Allow attributes of self.__options to be accessed directly
         return getattr(self.__options, name)
 
-    def parseArgv(self, argv):
+    def parse_argv(self, argv):
         # parse the options
         (self.__options, args) = self.parse_args(argv[1:])
 
@@ -141,8 +141,8 @@ class Options(optparse.OptionParser):
                        'with --commit')
                 raise OptionsError(msg)
 
-            self.parentCommit = self.__options.commit + '^'
-            self.childCommit = self.__options.commit
+            self.parent_commit = self.__options.commit + '^'
+            self.child_commit = self.__options.commit
         elif self.__options.differential is not None:
             # If --differential was specified,
             # review that differential revision
@@ -157,27 +157,27 @@ class Options(optparse.OptionParser):
             # We can't compute the parent and child commits now.
             # The code will not use them if it sees that self.differential is
             # set.
-            self.parentCommit = None
-            self.childCommit = None
+            self.parent_commit = None
+            self.child_commit = None
         else:
             # Default parent and child commits, if not otherwise specified
             if self.__options.cached:
-                self.parentCommit = git.COMMIT_HEAD
-                self.childCommit = git.COMMIT_INDEX
+                self.parent_commit = git.COMMIT_HEAD
+                self.child_commit = git.COMMIT_INDEX
             else:
-                self.parentCommit = git.COMMIT_INDEX
-                self.childCommit = git.COMMIT_WD
+                self.parent_commit = git.COMMIT_INDEX
+                self.child_commit = git.COMMIT_WD
 
             # Parse the remaining arguments
             num_args = len(args)
             if num_args == 1:
-                self.parentCommit = args[0]
+                self.parent_commit = args[0]
             elif num_args == 2:
                 if self.__options.cached:
                     msg = 'cannot specify --cached with two commits'
                     raise OptionsError(msg)
-                self.parentCommit = args[0]
-                self.childCommit = args[1]
+                self.parent_commit = args[0]
+                self.child_commit = args[1]
             elif num_args > 2:
                 raise OptionsError('trailing arguments: ' + ' '.join(args[2:]))
 
@@ -237,18 +237,18 @@ def main(argv):
     # Parse the command line options
     options = Options()
     try:
-        options.parseArgv(argv)
+        options.parse_argv(argv)
     except OptionsError, error:
-        options.printUsage(sys.stderr)
+        options.print_usage(sys.stderr)
         error_msg(error)
         return RETCODE_ARGUMENTS_ERROR
     except UsageError, error:
-        options.printHelp()
+        options.print_help()
         return RETCODE_SUCCESS
 
     # Get a Repository object
-    repo = git.get_repo(git_dir=options.gitDir,
-                        working_dir=options.workTree)
+    repo = git.get_repo(git_dir=options.git_dir,
+                        working_dir=options.work_tree)
 
     if options.differential:
         try:
@@ -258,7 +258,7 @@ def main(argv):
             error_msg(ex)
             return RETCODE_DIFFCAMP_ERROR
     else:
-        diff = repo.getDiff(options.parentCommit, options.childCommit)
+        diff = repo.getDiff(options.parent_commit, options.child_commit)
         rev = review.Review(repo, diff)
 
     return review.CliReviewer(rev).run()

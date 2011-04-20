@@ -25,13 +25,13 @@ class ParsedArgs(object):
 
 class ArgCommand(command.Command):
     def __init__(self, args, help):
-        self.argTypes = args
-        self.helpText = help
+        self.arg_types = args
+        self.help_text = help
 
     def run(self, cli_obj, name, args, line):
         args = args[1:]
         num_args = len(args)
-        num_arg_types = len(self.argTypes)
+        num_arg_types = len(self.arg_types)
 
         if num_args > num_arg_types:
             trailing_args = args[num_arg_types:]
@@ -40,50 +40,51 @@ class ArgCommand(command.Command):
 
         parsed_args = ParsedArgs()
         for n in range(num_args):
-            arg_type = self.argTypes[n]
+            arg_type = self.arg_types[n]
             value = arg_type.parse(cli_obj, args[n])
-            setattr(parsed_args, arg_type.getName(), value)
+            setattr(parsed_args, arg_type.get_name(), value)
 
         if num_args < num_arg_types:
             # Make sure the remaining options are optional
             # (The next argument must be marked as optional.
             # The optional flag on arguments after this doesn't matter.)
-            arg_type = self.argTypes[num_args]
-            if not arg_type.isOptional():
-                msg = 'missing %s' % (arg_type.getHrName(),)
+            arg_type = self.arg_types[num_args]
+            if not arg_type.is_optional():
+                msg = 'missing %s' % (arg_type.get_hr_name(),)
                 raise CommandArgumentsError(msg)
 
         for n in range(num_args, num_arg_types):
-            arg_type = self.argTypes[n]
-            setattr(parsed_args, arg_type.getName(), arg_type.getDefaultValue())
+            arg_type = self.arg_types[n]
+            setattr(parsed_args, arg_type.get_name(),
+                    arg_type.get_default_value())
 
-        return self.runParsed(cli_obj, name, parsed_args)
+        return self.run_parsed(cli_obj, name, parsed_args)
 
     def help(self, cli_obj, name, args, line):
         args = args[1:]
         syntax = name
         end = ''
-        for arg in self.argTypes:
-            if arg.isOptional():
-                syntax += ' [<%s>' % (arg.getName(),)
+        for arg in self.arg_types:
+            if arg.is_optional():
+                syntax += ' [<%s>' % (arg.get_name(),)
                 end += ']'
             else:
-                syntax += ' <%s>' % (arg.getName(),)
+                syntax += ' <%s>' % (arg.get_name(),)
         syntax += end
 
         cli_obj.output(syntax)
-        if not self.helpText:
+        if not self.help_text:
             return
 
         # FIXME: do nicer formatting of the help message
         cli_obj.output()
-        cli_obj.output(self.helpText)
+        cli_obj.output(self.help_text)
 
     def complete(self, cli_obj, name, args, text):
         args = args[1:]
         index = len(args)
         try:
-            arg_type = self.argTypes[index]
+            arg_type = self.arg_types[index]
         except IndexError:
             return []
 
@@ -93,7 +94,7 @@ class ArgCommand(command.Command):
 class Argument(object):
     def __init__(self, name, **kwargs):
         self.name = name
-        self.hrName = name
+        self.hr_name = name
         self.default = None
         self.optional = False
 
@@ -101,27 +102,27 @@ class Argument(object):
             if kwname == 'default':
                 self.default = kwvalue
             elif kwname == 'hr_name':
-                self.hrName = kwvalue
+                self.hr_name = kwvalue
             elif kwname == 'optional':
                 self.optional = kwvalue
             else:
                 raise TypeError('unknown keyword argument %r' % (kwname,))
 
-    def getName(self):
+    def get_name(self):
         return self.name
 
-    def getHrName(self):
+    def get_hr_name(self):
         """
-        arg.getHrName() --> string
+        arg.get_hr_name() --> string
 
         Get the human-readable name.
         """
-        return self.hrName
+        return self.hr_name
 
-    def isOptional(self):
+    def is_optional(self):
         return self.optional
 
-    def getDefaultValue(self):
+    def get_default_value(self):
         return self.default
 
     def complete(self, cli_obj, text):
@@ -153,14 +154,14 @@ class IntArgument(Argument):
         try:
             value = int(arg)
         except ValueError:
-            msg = '%s must be an integer' % (self.getHrName(),)
+            msg = '%s must be an integer' % (self.get_hr_name(),)
             raise CommandArgumentsError(msg)
 
         if self.min != None and value < self.min:
-            msg = '%s must be greater than %s' % (self.getHrName(), self.min)
+            msg = '%s must be greater than %s' % (self.get_hr_name(), self.min)
             raise CommandArgumentsError(msg)
         if self.max != None and value > self.max:
-            msg = '%s must be less than %s' % (self.getHrName(), self.max)
+            msg = '%s must be less than %s' % (self.get_hr_name(), self.max)
             raise CommandArgumentsError(msg)
 
         return value

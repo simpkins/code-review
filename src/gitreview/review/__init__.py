@@ -31,26 +31,26 @@ class TmpFile(object):
         self.commit = commit
         self.path = path
 
-        self.tmpFile = None
+        self.tmp_file = None
 
         if self.commit == git.COMMIT_WD:
-            self.tmpPath = os.path.join(repo.getWorkingDir(), path)
+            self.tmp_path = os.path.join(repo.getWorkingDir(), path)
         else:
             prefix = 'git-review-%s-' % (os.environ['USER'])
             suffix = '-' + os.path.basename(self.path)
-            self.tmpFile = tempfile.NamedTemporaryFile(prefix=prefix,
-                                                       suffix=suffix)
-            self.tmpPath = self.tmpFile.name
+            self.tmp_file = tempfile.NamedTemporaryFile(prefix=prefix,
+                                                        suffix=suffix)
+            self.tmp_path = self.tmp_file.name
             # Invoke git to write the blob contents into the temporary file
             self.repo.getBlobContents('%s:%s' % (self.commit, self.path),
-                                      outfile=self.tmpFile)
+                                      outfile=self.tmp_file)
 
     def __del__(self):
-        if self.tmpFile:
-            self.tmpFile.close()
+        if self.tmp_file:
+            self.tmp_file.close()
 
     def __str__(self):
-        return self.tmpPath
+        return self.tmp_path
 
 
 def sort_reasonably(entries):
@@ -79,11 +79,11 @@ class Review(object):
         self.repo = repo
         self.diff = diff
 
-        self.commitAliases = {}
-        self.setCommitAlias('parent', self.diff.parent)
-        self.setCommitAlias('child', self.diff.child)
+        self.commit_aliases = {}
+        self.set_commit_alias('parent', self.diff.parent)
+        self.set_commit_alias('child', self.diff.child)
 
-        self.currentIndex = 0
+        self.current_index = 0
 
         # Assign a fixed ordering to the file list
         #
@@ -93,47 +93,47 @@ class Review(object):
             self.ordering.append(entry)
 
         sort_reasonably(self.ordering)
-        self.numEntries = len(self.ordering)
+        self.num_entries = len(self.ordering)
 
-    def getEntries(self):
+    def get_entries(self):
         # XXX: we return a shallow copy.
         # Callers shouldn't modify the returned value directly
         # (we could return a copy if we really don't trust our callers)
         return self.ordering
 
-    def getNumEntries(self):
+    def get_num_entries(self):
         return len(self.ordering)
 
-    def getCurrentEntry(self):
+    def get_current_entry(self):
         try:
-            return self.ordering[self.currentIndex]
+            return self.ordering[self.current_index]
         except IndexError:
             # This happens when the diff is empty
             raise NoCurrentEntryError()
 
-    def getEntry(self, index):
+    def get_entry(self, index):
         return self.ordering[index]
 
-    def hasNext(self):
-        return (self.currentIndex + 1 < self.numEntries)
+    def has_next(self):
+        return (self.current_index + 1 < self.num_entries)
 
     def next(self):
-        if not self.hasNext():
-            raise IndexError(self.currentIndex)
-        self.currentIndex += 1
+        if not self.has_next():
+            raise IndexError(self.current_index)
+        self.current_index += 1
 
     def prev(self):
-        if self.currentIndex == 0:
+        if self.current_index == 0:
             raise IndexError(-1)
-        self.currentIndex -= 1
+        self.current_index -= 1
 
     def goto(self, index):
-        if index < 0 or index >= self.numEntries:
+        if index < 0 or index >= self.num_entries:
             raise IndexError(index)
-        self.currentIndex = index
+        self.current_index = index
 
-    def getFile(self, commit, path):
-        expanded_commit = self.expandCommitName(commit)
+    def get_file(self, commit, path):
+        expanded_commit = self.expand_commit_name(commit)
 
         if path == None:
             # This happens if the user tries to view the child version
@@ -148,13 +148,13 @@ class Review(object):
             ex.name = '%s:%s' % (commit, path)
             raise
 
-    def isRevisionOrPath(self, name):
+    def is_revision_or_path(self, name):
         """
         Like git.repo.isRevisionOrPath(), but handles commit aliases too.
         """
         # Try expanding commit aliases in the name, and seeing if that is
         # a valid commit.
-        is_rev = self.repo.isRevision(self.expandCommitName(name))
+        is_rev = self.repo.isRevision(self.expand_commit_name(name))
         if self.repo.hasWorkingDirectory():
             is_path = os.path.exists(os.path.join(self.repo.workingDir, name))
         else:
@@ -171,12 +171,12 @@ class Review(object):
             reason = 'unknown revision or path not in the working tree'
             raise git.AmbiguousArgumentError(name, reason)
 
-    def getCommitAliases(self):
-        return self.commitAliases.keys()
+    def get_commit_aliases(self):
+        return self.commit_aliases.keys()
 
-    def setCommitAlias(self, alias, commit):
+    def set_commit_alias(self, alias, commit):
         # Expand any aliases in the alias name before we store it
-        expanded_commit = self.expandCommitName(commit)
+        expanded_commit = self.expand_commit_name(commit)
 
         # Fully expand the commit name to a SHA1
         # git.COMMIT_INDEX and git.COMMIT_WD are special names we only use
@@ -187,17 +187,17 @@ class Review(object):
         else:
             sha1 = self.repo.getCommitSha1(expanded_commit)
 
-        self.commitAliases[alias] = sha1
+        self.commit_aliases[alias] = sha1
 
-    def unsetCommitAlias(self, alias):
-      del self.commitAliases[alias]
+    def unset_commit_alias(self, alias):
+      del self.commit_aliases[alias]
 
-    def expandCommitName(self, name):
+    def expand_commit_name(self, name):
         # Split apart the commit name from any suffix
         commit_name, suffix = git.commit.split_rev_name(name)
 
         try:
-            real_commit = self.commitAliases[commit_name]
+            real_commit = self.commit_aliases[commit_name]
         except KeyError:
             real_commit = commit_name
 

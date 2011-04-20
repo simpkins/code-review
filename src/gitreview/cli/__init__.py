@@ -39,36 +39,36 @@ class CLI(object):
         self.completekey = 'tab'
         self.prompt = '> '
 
-        # Normally, empty lines and EOF won't be stored in self.prevLine
-        # (the contents of self.prevLine remain be unchanged when one of these
-        # is input).  self.rememberEmptyLine can be set to True to override
+        # Normally, empty lines and EOF won't be stored in self.prev_line
+        # (the contents of self.prev_line remain be unchanged when one of these
+        # is input).  self.remember_empty_line can be set to True to override
         # this behavior.
         #
         # Setting this to True will
         # implementation of self.emptyline
-        # If self.rememberEmptyLine is True,
-        # self.prevLine will be updated
-        self.rememberEmptyLine = False
+        # If self.remember_empty_line is True,
+        # self.prev_line will be updated
+        self.remember_empty_line = False
 
         # State, modifiable by subclasses
         self.stop = False
         self.line = None
         self.cmd = None
         self.args = None
-        self.prevLine = None
+        self.prev_line = None
         self.commands = {}
 
         # Private state
-        self.__oldCompleter = None
+        self._old_completer = None
 
-    def addCommand(self, name, command):
+    def add_command(self, name, command):
         if self.commands.has_key(name):
             raise KeyError('command %r already exists' % (name,))
         self.commands[name] = command
 
-    def getCommand(self, name):
+    def get_command(self, name):
         """
-        cli.getCommand(name) --> entry
+        cli.get_command(name) --> entry
 
         Get a command entry, based on the command name, or an unambiguous
         prefix of the command name.
@@ -86,7 +86,7 @@ class CLI(object):
             pass
 
         # Perform completion to see how many commands match this prefix
-        matches = self.completeCommand(name)
+        matches = self.complete_command(name)
         if not matches:
             raise NoSuchCommandError(name)
         if len(matches) > 1:
@@ -101,7 +101,7 @@ class CLI(object):
         if newline:
             sys.stdout.write('\n')
 
-    def outputError(self, msg):
+    def output_error(self, msg):
         sys.stderr.write('error: %s\n' % (msg,))
 
     def readline(self):
@@ -115,12 +115,12 @@ class CLI(object):
         self.stop = False
 
         rc = None
-        self.setupReadline()
+        self.setup_readline()
         try:
             while not self.stop:
                 try:
                     line = self.readline()
-                    rc = self.runCommand(line)
+                    rc = self.run_command(line)
                 except KeyboardInterrupt:
                     # Don't exit on Ctrl-C, just abort the current command
                     # Print a newline, so that the next prompt will always
@@ -128,108 +128,108 @@ class CLI(object):
                     self.output(newline=True)
                     continue
         finally:
-            self.cleanupReadline()
+            self.cleanup_readline()
 
         return rc
 
-    def loopOnce(self):
-        # Note: loopOnce ignores self.stop
+    def loop_once(self):
+        # Note: loop_once ignores self.stop
         # It doesn't reset it if it is True
 
         rc = None
-        self.setupReadline()
+        self.setup_readline()
         try:
             line = self.readline()
-            rc = self.runCommand(line)
+            rc = self.run_command(line)
         finally:
-            self.cleanupReadline()
+            self.cleanup_readline()
 
         return rc
 
-    def runCommand(self, line, store=True):
+    def run_command(self, line, store=True):
         if line == None:
-            return self.handleEof()
+            return self.handle_eof()
 
         if not line:
-            return self.handleEmptyLine()
+            return self.handle_empty_line()
 
-        (cmd_name, args) = self.parseLine(line)
-        rc = self.invokeCommand(cmd_name, args, line)
+        (cmd_name, args) = self.parse_line(line)
+        rc = self.invoke_command(cmd_name, args, line)
 
-        # If store is true, store the line as self.prevLine
+        # If store is true, store the line as self.prev_line
         # However, don't remember EOF or empty lines, unless
-        # self.rememberEmptyLine is set.
-        if store and (line or self.rememberEmptyLine):
-            self.prevLine = line
+        # self.remember_empty_line is set.
+        if store and (line or self.remember_empty_line):
+            self.prev_line = line
 
         return rc
 
-    def invokeCommand(self, cmd_name, args, line):
+    def invoke_command(self, cmd_name, args, line):
         try:
-            cmd_entry = self.getCommand(cmd_name)
+            cmd_entry = self.get_command(cmd_name)
         except NoSuchCommandError, ex:
-            return self.handleUnknownCommand(cmd_name)
+            return self.handle_unknown_command(cmd_name)
         except AmbiguousCommandError, ex:
-            return self.handleAmbiguousCommand(cmd_name, ex.matches)
+            return self.handle_ambiguous_command(cmd_name, ex.matches)
 
         try:
             return cmd_entry.run(self, cmd_name, args, line)
         except:
-            return self.handleCommandException()
+            return self.handle_command_exception()
 
-    def handleEof(self):
+    def handle_eof(self):
         self.output()
         self.stop = True
         return 0
 
-    def handleEmptyLine(self):
+    def handle_empty_line(self):
         # By default, re-execute the last command.
         #
-        # This would behave oddly when self.rememberEmptyLine is True, though,
-        # so do nothing if rememberEmptyLine is set.  (With rememberEmptyLine
-        # on, the first time an empty line is entered would re-execute the
-        # previous commands.  Subsequent empty lines would do nothing,
-        # though.)
-        if self.rememberEmptyLine:
+        # This would behave oddly when self.remember_empty_line is True,
+        # though, so do nothing if remember_empty_line is set.  (With
+        # remember_empty_line on, the first time an empty line is entered would
+        # re-execute the previous commands.  Subsequent empty lines would do
+        # nothing, though.)
+        if self.remember_empty_line:
             return 0
 
-        # If prevLine is None (either no command has been run yet, or the
+        # If prev_line is None (either no command has been run yet, or the
         # prevous command was EOF), or if it is empty, do nothing.
-        if not self.prevLine:
+        if not self.prev_line:
             return 0
 
-        # Re-execute self.prevLine
-        return self.runCommand(self.prevLine)
+        # Re-execute self.prev_line
+        return self.run_command(self.prev_line)
 
-    def handleUnknownCommand(self, cmd):
-        self.outputError('%s: no such command' % (cmd,))
+    def handle_unknown_command(self, cmd):
+        self.output_error('%s: no such command' % (cmd,))
         return -1
 
-    def handleAmbiguousCommand(self, cmd, matches):
-        self.outputError('%s: ambiguous command: %s' % (cmd, matches))
+    def handle_ambiguous_command(self, cmd, matches):
+        self.output_error('%s: ambiguous command: %s' % (cmd, matches))
         return -1
 
-    def handleCommandException(self):
+    def handle_command_exception(self):
         ex = sys.exc_info()[1]
         if isinstance(ex, CommandArgumentsError):
             # CommandArgumentsError indicates the user entered
             # invalid arguments.  Just print a normal error message,
             # with no traceback.
-            self.outputError(ex)
+            self.output_error(ex)
             return -1
 
         tb = traceback.format_exc()
-        self.outputError(tb)
+        self.output_error(tb)
         return -2
 
     def complete(self, text, state):
         if state == 0:
             try:
-                self.completions = self.getCompletions(text)
+                self.completions = self.get_completions(text)
             except:
-                self.outputError('error getting completions')
+                self.output_error('error getting completions')
                 tb = traceback.format_exc()
-                self.outputError(tb)
+                self.output_error(tb)
                 return None
 
         try:
@@ -237,7 +237,7 @@ class CLI(object):
         except IndexError:
             return None
 
-    def getCompletions(self, text):
+    def get_completions(self, text):
         # strip the string down to just the part before endidx
         # Things after endidx never affect our completion behavior
         line = readline.get_line_buffer()
@@ -245,16 +245,16 @@ class CLI(object):
         endidx = readline.get_endidx()
         line = line[:endidx]
 
-        (cmd_name, args, part) = self.parsePartialLine(line)
+        (cmd_name, args, part) = self.parse_partial_line(line)
         if part == None:
             part = ''
 
         if cmd_name == None:
             assert not args
-            matches = self.completeCommand(part, add_space=True)
+            matches = self.complete_command(part, add_space=True)
         else:
             try:
-                command = self.getCommand(cmd_name)
+                command = self.get_command(cmd_name)
             except (NoSuchCommandError, AmbiguousCommandError), ex:
                 # Not a valid command.  No matches
                 return None
@@ -286,48 +286,48 @@ class CLI(object):
 
         return ret
 
-    def completeCommand(self, text, add_space=False):
+    def complete_command(self, text, add_space=False):
         matches = [cmd_name for cmd_name in self.commands.keys()
                    if cmd_name.startswith(text)]
         if add_space:
             matches = [(match, True) for match in matches]
         return matches
 
-    def parseLine(self, line):
+    def parse_line(self, line):
         """
-        cli.parseLine(line) --> (cmd, args)
+        cli.parse_line(line) --> (cmd, args)
 
         Returns a tuple consisting of the command name, and the arguments
         to pass to the command function.  Default behavior is to tokenize the
         line, and return (tokens[0], tokens)
         """
         tokenizer = tokenize.SimpleTokenizer(line)
-        tokens = tokenizer.getTokens()
+        tokens = tokenizer.get_tokens()
         return (tokens[0], tokens)
 
-    def parsePartialLine(self, line):
+    def parse_partial_line(self, line):
         """
-        cli.parseLine(line) --> (cmd, args, partial_arg)
+        cli.parse_line(line) --> (cmd, args, partial_arg)
 
         Returns a tuple consisting of the command name, and the arguments
         to pass to the command function.  Default behavior is to tokenize the
         line, and return (tokens[0], tokens)
         """
         tokenizer = tokenize.SimpleTokenizer(line)
-        tokens = tokenizer.getTokens(stop_at_end=False)
+        tokens = tokenizer.get_tokens(stop_at_end=False)
         if tokens:
             cmd_name = tokens[0]
         else:
             cmd_name = None
-        return (cmd_name, tokens, tokenizer.getPartialToken())
+        return (cmd_name, tokens, tokenizer.get_partial_token())
 
-    def setupReadline(self):
-        self.oldCompleter = readline.get_completer()
+    def setup_readline(self):
+        self._old_completer = readline.get_completer()
         readline.set_completer(self.complete)
         readline.parse_and_bind(self.completekey+": complete")
 
-    def cleanupReadline(self):
-        if self.__oldCompleter:
-            readline.set_completer(self.__oldCompleter)
+    def cleanup_readline(self):
+        if self._old_completer:
+            readline.set_completer(self._old_completer)
         else:
             readline.set_completer(lambda text, state: None)
