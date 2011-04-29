@@ -183,8 +183,11 @@ class Repository(object):
         # even if "name" refers to a tag object.
         cmd = ['rev-list', '-1']
         if extra_args is not None:
-          cmd.extend(extra_args)
+            cmd.extend(extra_args)
         cmd.append(name)
+        # Add '--' so git will treat the argument as a commit name,
+        # and not a path, in case it is ambiguous
+        cmd.append('--')
         try:
             sha1 = self.runOnelineCmd(cmd)
         except proc.CmdFailedError, ex:
