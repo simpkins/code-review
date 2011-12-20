@@ -259,7 +259,12 @@ def get_diff_list(repo, parent, child, paths=None):
         # No diffs
         out = ''
     else:
-        cmd = ['diff', '--raw', '--abbrev=40', '-z', '-C'] + \
+        # XXX: git seems to have some weird interactions between the
+        # -M and -C arguments.  "-M -C" works fairly well, while "-C" by
+        # itself or "-C -M" will frequently hit file rename limits and stop
+        # doing rename detection.  I haven't verified that "-M -C" actually
+        # does proper copy detection.
+        cmd = ['diff', '--raw', '--abbrev=40', '-z', '-M', '-C'] + \
                 commit_args + ['--'] + path_args
         try:
             out = repo.runSimpleGitCmd(cmd)

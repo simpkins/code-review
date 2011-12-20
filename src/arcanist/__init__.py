@@ -14,3 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+
+# import all of the exception types into the top-level arcanist namespace
+from .err import *

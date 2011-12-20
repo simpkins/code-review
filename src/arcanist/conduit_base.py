@@ -24,12 +24,7 @@ import urllib
 
 from urlparse import urlparse
 
-
-class ConduitClientError(Exception):
-    def __init_(self, code, info):
-        Exception.__init_(self, '%s: %s' % (code, info))
-        self.code = code
-        self.info = info
+from .err import ConduitClientError
 
 
 class ConduitClient(object):
@@ -38,7 +33,7 @@ class ConduitClient(object):
     """
     RESPONSE_SHIELD = 'for(;;);'
 
-    def __init__(self, uri, timeout=5):
+    def __init__(self, uri, timeout=15):
         self.uri = uri
         self.session_key = None
         self.connection_id = None
@@ -78,10 +73,7 @@ class ConduitClient(object):
 
     def connect(self, user, key, client=None, description=None):
         if client is None:
-            # TODO: It would be nice to use something other than "arc" here,
-            # but conduit refuses to talk to you unless you call yourself
-            # "arc".
-            client = 'arc'
+            client = 'pyarc'
         if description is None:
             description = socket.gethostname() + ':' + ' '.join(sys.argv)
 

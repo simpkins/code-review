@@ -191,7 +191,8 @@ class Repository(object):
         try:
             sha1 = self.runOnelineCmd(cmd)
         except proc.CmdFailedError, ex:
-            if ex.stderr.find('unknown revision') >= 0:
+            if (ex.stderr.find('unknown revision') >= 0 or
+                ex.stderr.find('bad revision')):
                 raise NoSuchCommitError(name)
             raise
         return sha1

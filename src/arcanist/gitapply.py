@@ -1,152 +1,15 @@
-#!/usr/bin/python -tt
+#!/usr/local/bin/python2.6 -tt
 #
-# Copyright (c) 2009-present Facebook.  All rights reserved.
+# Copyright 2004-present Facebook.  All rights reserved.
 #
-"""
-This module provides functions for interacting with git commits
-created by the apply_diffcamp script.
-"""
 import re
+import time
 
-import gitreview.git as git
-import gitreview.git.svn as git_svn
+from . import revision
 
-import revision
-from exceptions import *
-
-__all__ = ['DiffcampCommit', 'get_dc_commit_chain', 'apply_diff']
-
-# Constants used by diffcamp
-SOURCE_CONTROL_SVN = 1
-SOURCE_CONTROL_GIT = 2
-
-
-class DiffcampCommit(object):
-    def __init__(self, commit):
-        self.commit = commit # a git.commit.Commit object
-
-        # appliedOnto stores the SHA1 value of the commit that the diffcamp
-        # diff was applied to.
-        #
-        # Note that this is often different from the commit's parent(s).
-        # For example, say a revision has 3 diffs, and we apply them against
-        # trunk.  This would normally create 3 commits, where commit1 is a
-        # child of trunk, commit2 is a child of commit1, and commit3 a child of
-        # commit2.  However, appliedOnto will be trunk for all 3 commits.
-        self.appliedOnto = None
-
-        diff_id_str = self.__findField('Differential Diff')
-        try:
-            self.diffId = int(diff_id_str)
-        except ValueError:
-            raise NotADiffcampCommitError(commit, 'invalid diff ID %r' %
-                                          (diff_id_str,))
-
-        rev_id_str = self.__findField('Differential Revision')
-        try:
-            self.revisionId = int(rev_id_str)
-        except ValueError:
-            raise NotADiffcampCommitError(commit, 'invalid revision ID %r' %
-                                          (rev_id_str,))
-
-    def __findField(self, field_name):
-        # The diffcamp fields are at the end of the commit message.
-        # Search backwards to find the correct version, just in case something
-        # else in the commit message happens to match this.
-        field_prefix = '\n' + field_name + ': '
-        idx = self.commit.comment.rfind(field_prefix)
-        if idx < 0:
-            raise NotADiffcampCommitError(self.commit,
-                                          'no %s field' % (field_name,))
-
-        # The field value is everything up to the next newline:
-        end_idx = self.commit.comment.find('\n', idx + 1)
-
-        value = self.commit.comment[idx + len(field_prefix):end_idx]
-        return value
-
-
-def get_dc_commit_chain(repo, rev_id, ref_name=None):
-    """
-    Get the chain of commits representing the diffs from the specified
-    differential revision.
-
-    Returns a list of commits for this revision, in order from earliest to
-    latest.  (I.e. a commit's parent commit always appears before it in the
-    list.)
-    """
-    if ref_name is None:
-        # The ref "refs/diffcamp/<rev_id>" points to the most recent
-        # commit for this revision.
-        #
-        # Use this unless another name was explicitly specified.
-        ref_name = 'refs/diffcamp/%s' % (rev_id,)
-
-    try:
-        commit = repo.getCommit(ref_name)
-    except git.NoSuchCommitError:
-        # No commits for this revision are available
-        return []
-
-    # Attempt to parse the differential information from the commit message
-    try:
-        dc_commit = DiffcampCommit(commit)
-    except NotADiffcampCommitError, ex:
-        # Hmm.  The head of a refs/diffcamp/<NNN> ref really should
-        # be a Diffcamp commit.  Just re-raise the NotADiffcampCommitError
-        # as-is.
-        raise
-
-    # Walk backwards through the commit history until we find a commit that is
-    # not from this diffcamp revision.
-    commit_chain = [dc_commit]
-    while True:
-        num_parents = len(commit.parents)
-        if num_parents == 0:
-            # A little weird, but okay
-            break
-
-        # Get the parent commit,
-        # Note: We always use the first parent.
-        # If a differential commit is a merge, the previous commit from the
-        # same revision should always be the first parent.
-        commit = repo.getCommit(commit.parents[0])
-
-        # Check to see if hte parent looks like a differential commit.
-        try:
-            dc_commit = DiffcampCommit(commit)
-        except NotADiffcampCommitError:
-            # Not a diffcamp commit.  We reached the end of the chain
-            break
-
-        # Check to see if this is from the same revision
-        if dc_commit.revisionId != rev_id:
-            # This is from a different revision.
-            # We reached the end of the chain
-            break
-
-        # This commit belongs to the same revision.
-        # Add it to the chain and continue
-        commit_chain.append(dc_commit)
-
-    # Walk over the commits, and set the appliedOnto attribute
-    # The first commit was applied onto its parent
-    applied_onto = commit_chain[0].commit.parents[0]
-    for dc_commit in commit_chain:
-      # For all commits but the first, if there is just one parent,
-      # the patch was applied onto the same commit as its parent.
-      # If there are two commits, the patch was applied onto the second parent.
-      #
-      # (The first commit should have exactly 1 commit, so this check will
-      # always fail for it.)
-      if len(dc_commit.commit.parents) > 1:
-        applied_onto = dc_commit.commit.parents[1]
-      dc_commit.appliedOnto = applied_onto
-
-    # The earlier commits are at the end of the chain,
-    # so reverse it before returning.
-    commit_chain.reverse()
-    return commit_chain
+from .gitreview.diffcamp.dcgit import get_dc_commit_chain
+from .gitreview import git
+from .gitreview.git import svn as git_svn
 
 
 def _compute_patch_paths(repo, diff, apply_to):
@@ -154,17 +17,17 @@ def _compute_patch_paths(repo, diff, apply_to):
     Compute the strip and prefix parameters for git.Repository.applyPatch()
     Returns (strip, prefix)
     """
-    if not diff.sourceControlPath:
+    if not diff.src_control_path:
         # If the diff doesn't have a source control path, we don't have much
         # information to go on.  This shouldn't occur too often.  Most of our
-        # diffcamp tools always set sourceControlPath, except when working in a
+        # diffcamp tools always set src_control_path, except when working in a
         # pure git repository.
         #
         # For now, assume strip=1 and no prefix.  (This should be correct for
         # pure git repositories.)
         return (1, None)
 
-    # All of our DiffCamp tools currently set diff.sourceControlPath to a
+    # All of our DiffCamp tools currently set diff.src_control_path to a
     # Subversion URL.  Try to find the subversion URL for this repository.
     repo_url = None
     for commit in [apply_to, 'trunk', 'HEAD']:
@@ -186,7 +49,7 @@ def _compute_patch_paths(repo, diff, apply_to):
     # We don't really care about the scheme part of the URL, so strip it off
     # of both urls.
     repo_path = repo_url.split('://', 1)[-1]
-    diff_path = diff.sourceControlPath.split('://', 1)[-1]
+    diff_path = diff.src_control_path.split('://', 1)[-1]
 
     # Split the path into non-empty components.
     repo_parts = [comp for comp in repo_path.split('/') if comp]
@@ -214,7 +77,7 @@ def _compute_patch_paths(repo, diff, apply_to):
             # prefix.
             raise DiffcampGitError('repository SVN url (%s) and diff SVN '
                                    'url (%s) do not match' %
-                                   (repo_url, diff.sourceControlPath))
+                                   (repo_url, diff.src_control_path))
     else:
         if repo_parts == diff_parts[:len(repo_parts)]:
             # repo_parts is a prefix of diff_parts.  We need to add
@@ -225,7 +88,7 @@ def _compute_patch_paths(repo, diff, apply_to):
             # The diff URL and the repository URL don't share a common prefix.
             raise DiffcampGitError('repository SVN url (%s) and diff SVN '
                                    'url (%s) do not match' %
-                                   (repo_url, diff.sourceControlPath))
+                                   (repo_url, diff.src_control_path))
 
 
 def apply_diff(repo, diff, apply_to, parents=None, strip=None, prefix=None):
@@ -246,7 +109,7 @@ def apply_diff(repo, diff, apply_to, parents=None, strip=None, prefix=None):
 
     rev = diff.revision
     # Get the patch for this diff
-    patch = diff.getPatch()
+    patch = diff.get_patch()
 
     # Figure out if we need to add a directory prefix to the path names in the
     # patch, or strip off part of the path names.
@@ -262,16 +125,6 @@ def apply_diff(repo, diff, apply_to, parents=None, strip=None, prefix=None):
             strip = 0
         if directory is None:
             directory = ''
-
-    # Older versions of diffcamp used to include the "a/" and "b/" prefixes
-    # output by "git diff".  Newer versions (created after rE208095) don't.
-    # Ideally we should parse the patch to see if it needs this.  For now, just
-    # check the date.  This won't be 100% accurate, but is easier to implement
-    # for now.
-    rE208095_date = 1261036800
-    if diff.dateCreated < rE208095_date:
-        if diff.sourceControlSystem == SOURCE_CONTROL_GIT:
-            strip += 1
 
     # When diffcamp was changed to strip out the "a/" and "b/" prefixes
     # output by git, it also was changed to strip out "/dev/null" file paths.
@@ -289,17 +142,18 @@ def apply_diff(repo, diff, apply_to, parents=None, strip=None, prefix=None):
                                context=5)
 
     # Prepare the commit message and author info so we can create a commit
-    commit_msg = rev.getCommitMessage()
+    commit_msg = rev.get_commit_message()
     # Include the diff ID in the commit message
     commit_msg += 'Differential Diff: %s\n' % (diff.id,)
 
-    if rev.ownerName:
-        author_name = rev.ownerName
-        author_email = '%s@facebook.com' % (rev.ownerName,)
-    else:
-        author_name = 'Diffcamp User'
-        author_email = 'noreply@facebook.com'
-    author_date = str(diff.dateCreated)
+    # TODO: extract the author name and email address from the author PHID
+    author_name = 'Differential User'
+    author_email = 'noreply@fb.com'
+
+    # TODO: phabricator differential doesn't report the date created
+    # via a conduit API.
+    #author_date = str(diff.dateCreated)
+    author_date = str(time.time())
 
     if parents is None:
         parents = [apply_to]
@@ -316,69 +170,69 @@ def apply_diff(repo, diff, apply_to, parents=None, strip=None, prefix=None):
 class RevisionApplier(object):
     def __init__(self, repo, rev, onto=None, ref_name=None, log=None):
         self.repo = repo
-        self.logFile = log
+        self.log_file = log
 
         if isinstance(rev, (int, long)):
             # If the revision argument is a revision ID,
             # get the revision information from diffcamp
-            self.rev = revision.get_revision(rev)
+            self.rev = revision.get_revision(repo.workingDir, rev)
         else:
             self.rev = rev
 
         if ref_name is None:
-            self.refName = 'refs/diffcamp/%d' % (self.rev.id,)
+            self.ref_name = 'refs/diffcamp/%d' % (self.rev.id,)
 
         # User-suggested commit against which the diffs should be applied
         self.onto = onto
 
         # The diffs from this revision that still need to be applied
-        self.diffsToApply = []
-        # The SHA1 of the current head of self.refName
-        self.refHead = None
+        self.diffs_to_apply = []
+        # The SHA1 of the current head of self.ref_name
+        self.ref_head = None
         # The SHA1 of the commit against which the previous diff was applied
         # This is normally a good indicator of which commit the next patch
         # should be applied.
-        self.prevDiffOnto = None
+        self.prev_diff_onto = None
 
         # Find the existing diffs already in this repository,
         # and update our state accordingly
-        self.__findExistingDiffs()
+        self.__find_existing_diffs()
 
     def log(self, msg):
-        if self.logFile is None:
+        if self.log_file is None:
             return
-        self.logFile.write(msg)
-        self.logFile.write('\n')
+        self.log_file.write(msg)
+        self.log_file.write('\n')
 
-    def __findExistingDiffs(self):
+    def __find_existing_diffs(self):
         """
         Find the diffs from this revision that have already been applied to
-        this repository, and initialize self.diffsToApply, self.refHead, and
-        self.prevDiffOnto appropriately.
+        this repository, and initialize self.diffs_to_apply, self.ref_head, and
+        self.prev_diff_onto appropriately.
         """
         # Do nothing for revisions that don't have any diffs yet
         if not self.rev.diffs:
-            self.refHead = None
-            self.prevDiffOnto = None
-            self.diffsToApply = rev.diffs[:]
+            self.ref_head = None
+            self.prev_diff_onto = None
+            self.diffs_to_apply = rev.diffs[:]
             return
 
         # Get the chain of commits already created for diffs from this revision
         dc_commit_chain = get_dc_commit_chain(self.repo, self.rev.id,
-                                              self.refName)
+                                              self.ref_name)
 
         if not dc_commit_chain:
             # If there are no diffs already applied,
             # initialization is very simple
-            self.refHead = None
-            self.prevDiffOnto = None
-            self.diffsToApply = self.rev.diffs[:]
+            self.ref_head = None
+            self.prev_diff_onto = None
+            self.diffs_to_apply = self.rev.diffs[:]
             return
 
         # The diffcamp ref branch currently points to the last
         # commit in dc_commit_chain
-        self.refHead = dc_commit_chain[-1].commit.sha1
-        self.prevDiffOnto = dc_commit_chain[-1].appliedOnto
+        self.ref_head = dc_commit_chain[-1].commit.sha1
+        self.prev_diff_onto = dc_commit_chain[-1].appliedOnto
 
         # Figure out the list of diffs from this revision that still need to be
         # applied.
@@ -389,7 +243,7 @@ class RevisionApplier(object):
         found_last_diff = False
         for diff in self.rev.diffs:
             if found_last_diff:
-                self.diffsToApply.append(diff)
+                self.diffs_to_apply.append(diff)
             elif diff.id == dc_commit_chain[-1].diffId:
                 found_last_diff = True
 
@@ -409,7 +263,7 @@ class RevisionApplier(object):
         # applied to the second parent.
         for dc_commit in reversed(dc_commit_chain[1:]):
             if len(dc_commit.commit.parents) > 1:
-                self.prevDiffOnto = dc_commit.commit.parents[1]
+                self.prev_diff_onto = dc_commit.commit.parents[1]
                 break
         else:
             # We never broke out of the for loop.  The diff was applied
@@ -417,17 +271,17 @@ class RevisionApplier(object):
             if not dc_commit_chain[0].commit.parents:
                 # This shouldn't ever happen under normal circumstances.
                 # We always have at least 1 parent for diffcamp diffs.
-                self.prevDiffOnto = None
+                self.prev_diff_onto = None
             else:
-                self.prevDiffOnto = dc_commit_chain[0].commit.parents[0]
+                self.prev_diff_onto = dc_commit_chain[0].commit.parents[0]
 
-    def applyAll(self):
-        self.log('  %d diffs to apply' % (len(self.diffsToApply),))
-        while self.diffsToApply:
-            self.applyNextDiff()
+    def apply_all(self):
+        self.log('  %d diffs to apply' % (len(self.diffs_to_apply),))
+        while self.diffs_to_apply:
+            self.apply_next_diff()
 
-    def applyNextDiff(self):
-        diff = self.diffsToApply[0]
+    def apply_next_diff(self):
+        diff = self.diffs_to_apply[0]
 
         # Compute the list of commits onto which we will try applying this diff
         #
@@ -442,13 +296,23 @@ class RevisionApplier(object):
         onto_list = []
         if self.onto:
             onto_list.append(self.onto)
-        if self.prevDiffOnto:
-            onto_list.append(self.prevDiffOnto)
+        if self.prev_diff_onto:
+            onto_list.append(self.prev_diff_onto)
 
-        # If both self.onto and self.prevDiffOnto fail, then try applying onto
-        # refs/remotes/trunk when the diff was created.  If that also fails,
-        # try HEAD as a last resort.
-        onto_list += ['refs/remotes/trunk@{%s}' % (diff.dateCreated,), 'HEAD']
+
+        # TODO: The old diffcamp code used to report when a diff was created.
+        # We could use this as a guess for which version of trunk to apply
+        # onto.  We should fix phabricator differential so it also reports the
+        # date.
+        #
+        # TODO: It would be nice to use diff.src_control_base_revision, if it
+        # exists in this repository.
+        if False:
+            # If both self.onto and self.prev_diff_onto fail, then try applying
+            # onto refs/remotes/trunk when the diff was created.  If that also
+            # fails, try HEAD as a last resort.
+            onto_list.append('refs/remotes/trunk@{%s}' % (diff.date_created,))
+        onto_list.append('HEAD')
 
         success = False
         onto_tried = []
@@ -472,10 +336,10 @@ class RevisionApplier(object):
                      (diff.id, onto))
 
             # Compute the parents to use for the new commit
-            if self.refHead is None or self.refHead == onto_sha1:
+            if self.ref_head is None or self.ref_head == onto_sha1:
                 parents = [onto_sha1]
             else:
-                parents = [self.refHead, onto_sha1]
+                parents = [self.ref_head, onto_sha1]
 
             # Try applying the diff
             try:
@@ -502,16 +366,16 @@ class RevisionApplier(object):
         # Update the ref name.
         reason = ('Applying diffcamp diff %d from revision %d' %
                   (diff.id, self.rev.id,))
-        if self.refHead is None:
+        if self.ref_head is None:
             old_ref_value = ''
         else:
-            old_ref_value = self.refHead
-        args = ['update-ref', '-m', reason, '--no-deref', self.refName,
+            old_ref_value = self.ref_head
+        args = ['update-ref', '-m', reason, '--no-deref', self.ref_name,
                 new_commit_sha1, old_ref_value]
         self.repo.runSimpleGitCmd(args)
 
         # Update our member variables to prepare for the
         # next diff to be applied
-        self.refHead = new_commit_sha1
-        self.prevDiffOnto = onto
-        self.diffsToApply.pop(0)
+        self.ref_head = new_commit_sha1
+        self.prev_diff_onto = onto
+        self.diffs_to_apply.pop(0)
