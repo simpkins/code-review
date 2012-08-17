@@ -123,12 +123,10 @@ class ConduitClient(object):
         return self.parse_response(response_data)
 
     def parse_response(self, data):
-        if not data.startswith(self.RESPONSE_SHIELD):
-            raise Exception('%s returned HTTP/200, but with invalid response '
-                            'data' % (self.uri,))
+        if data.startswith(self.RESPONSE_SHIELD):
+            data = data[len(self.RESPONSE_SHIELD):]
 
-        json_data = data[len(self.RESPONSE_SHIELD):]
-        response = json.loads(json_data)
+        response = json.loads(data)
 
         error_code = response.get('error_code')
         if error_code:
