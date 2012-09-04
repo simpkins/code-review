@@ -284,34 +284,14 @@ class RevisionApplier(object):
         diff = self.diffs_to_apply[0]
 
         # Compute the list of commits onto which we will try applying this diff
-        #
-        # TODO: Recent diffs also include a "sourceControlBaseRevision"
-        # parameter, containing the svn revision ID or git SHA1 that the diff
-        # was computed against.  We should try to prefer this revision if it is
-        # valid.  (This unfortunately may not always be useful for git
-        # repositories.  For git repositories it might be more useful to have
-        # the SHA1 of the tree, rather than of the commit.  We're more likely
-        # to have a matching tree ID than commit ID, since the commit also
-        # includes the commit date.)
         onto_list = []
         if self.onto:
             onto_list.append(self.onto)
+        if diff.src_control_base_rev:
+            onto_list.append(diff.src_control_base_rev)
         if self.prev_diff_onto:
             onto_list.append(self.prev_diff_onto)
 
-
-        # TODO: The old diffcamp code used to report when a diff was created.
-        # We could use this as a guess for which version of trunk to apply
-        # onto.  We should fix phabricator differential so it also reports the
-        # date.
-        #
-        # TODO: It would be nice to use diff.src_control_base_revision, if it
-        # exists in this repository.
-        if False:
-            # If both self.onto and self.prev_diff_onto fail, then try applying
-            # onto refs/remotes/trunk when the diff was created.  If that also
-            # fails, try HEAD as a last resort.
-            onto_list.append('refs/remotes/trunk@{%s}' % (diff.date_created,))
         onto_list.append('HEAD')
 
         success = False
