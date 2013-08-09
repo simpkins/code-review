@@ -18,17 +18,20 @@
 This is a python package for interacting with git repositories.
 """
 
+import errno
 import os
+import re
+import stat
 
 # Import all of the constants and exception types into the current namespace
-from constants import *
-from exceptions import *
+from .constants import *
+from .exceptions import *
 
-import obj
-import commit
-import config
-import diff
-import repo
+from . import obj
+from . import commit
+from . import config
+from . import diff
+from . import repo
 
 
 def is_git_dir(path):
@@ -58,7 +61,7 @@ def is_git_dir(path):
 
 def _get_git_dir(git_dir=None, cwd=None):
     """
-    _get_git_dir(dir=None, cwd=None) --> (git_dir, working_dir)
+    _get_git_dir(git_dir=None, cwd=None) --> (git_dir, working_dir)
 
     Attempt to find the git directory, similarly to the way git does.
     git_dir should be the git directory explicitly specified on the command
@@ -96,23 +99,19 @@ def _get_git_dir(git_dir=None, cwd=None):
         ceiling_dirs = os.environ['GIT_CEILING_DIRECTORIES'].split(':')
     ceiling_dirs.append(os.path.sep) # Add the root directory
 
-    dir = os.path.normpath(cwd)
+    path = os.path.normpath(cwd)
     while True:
-        # Check to see if this directory contains a .git directory
-        #
-        # TODO: git also accepts regular files called .git that contain
-        # "gitdir: <path>"
-        git_dir = os.path.join(dir, '.git')
-        if os.path.isdir(git_dir):
-            if is_git_dir(git_dir):
-                return (git_dir, dir)
+        # Check to see if this directory contains a .git file or directory
+        ret = _check_git_path(path)
+        if ret is not None:
+            return ret
 
         # Check to see if this directory looks like a git directory
-        if is_git_dir(dir):
-            return (dir, None)
+        if is_git_dir(path):
+            return (path, None)
 
         # Walk up to the parent directory before looping again
-        (parent_dir, rest) = os.path.split(dir)
+        (parent_dir, rest) = os.path.split(path)
 
         # If the parent_dir is one of the ceiling directories,
         # we should stop before examining it.  The current directory
@@ -120,7 +119,36 @@ def _get_git_dir(git_dir=None, cwd=None):
         if parent_dir in ceiling_dirs:
             raise NotARepoError(cwd)
 
-        dir = parent_dir
+        path = parent_dir
+
+
+def _check_git_path(path):
+    git_path = os.path.join(path, '.git')
+    try:
+        stat_info = os.lstat(git_path)
+    except OSError as ex:
+        if ex.errno == errno.ENOENT:
+            return None
+        raise
+
+    if stat.S_ISREG(stat_info.st_mode):
+        # Submodules contain .git files that point to their git directory
+        # location.  The file contains a single line of the format
+        # "gitdir: <path>"
+        with open(git_path) as f:
+            first_line = f.readline()
+        m = re.match(r'^gitdir: (.*)\n?', first_line)
+        if m:
+            dest = os.path.normpath(os.path.join(path, m.group(1)))
+            if not is_git_dir(dest):
+                raise GitError('%s points to bad git diretory %s' %
+                               (git_path, dest))
+            return (dest, path)
+    elif stat.S_ISDIR(stat_info.st_mode):
+        if is_git_dir(git_path):
+            return (git_path, path)
+
+    return None
 
 
 def get_repo(git_dir=None, working_dir=None):
@@ -151,6 +179,11 @@ def get_repo(git_dir=None, working_dir=None):
         if is_bare:
             working_dir = None
         else:
-            working_dir = git_config.get('core.worktree', default_working_dir)
+            working_dir = git_config.get('core.worktree', None)
+            if working_dir is None:
+                working_dir = default_working_dir
+            else:
+                working_dir = os.path.join(git_dir, working_dir)
+                working_dir = os.path.normpath(working_dir)
 
     return repo.Repository(git_dir, working_dir, git_config)
