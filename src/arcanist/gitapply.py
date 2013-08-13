@@ -7,9 +7,9 @@ import time
 
 from . import revision
 
-from .gitreview.diffcamp.dcgit import get_dc_commit_chain
-from .gitreview import git
-from .gitreview.git import svn as git_svn
+from gitreview.diffcamp.dcgit import get_dc_commit_chain
+from gitreview import git
+from gitreview.git import svn as git_svn
 
 
 def _compute_patch_paths(repo, diff, apply_to):
