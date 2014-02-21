@@ -91,7 +91,13 @@ class Revision(object):
         orig_diffs = self.diffs
         self.diffs = []
         if orig_diffs:
-            for diff_dict in orig_diffs:
+            # Older versions of phabricator returned rev.diffs as a list of
+            # objects, newer versions return it as a dictionary of
+            # id --> object.  Convert the older list format to a dictionary if
+            # necessary.
+            if isinstance(orig_diffs, list):
+                orig_diffs = dict((diff.id, diff) for diff in orig_diffs)
+            for diff_id, diff_dict in orig_diffs.iteritems():
                 diff = Diff(self, diff_dict)
                 self.diffs.append(diff)
             # Sort the diffs in ascending order by ID.
