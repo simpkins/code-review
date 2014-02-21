@@ -8,20 +8,20 @@ from . conduit import ArcanistConduitClient
 from .err import *
 
 
-def _populate_json_object(object, dict, mapping):
+def _populate_json_object(object, params, mapping):
     for key, attr_name in mapping.iteritems():
         if not attr_name:
             attr_name = key
-        if dict.has_key(key):
-            setattr(object, attr_name, dict[key])
+        if params.has_key(key):
+            setattr(object, attr_name, params[key])
         else:
             setattr(object, attr_name, None)
 
 
 class ChangeSet(object):
-    def __init__(self, diff, dict):
+    def __init__(self, diff, params):
         self.diff = diff
-        self.all_params = dict
+        self.all_params = params
 
         mapping = {
             'currentPath': 'current_path',
@@ -35,22 +35,23 @@ class ChangeSet(object):
             'hunks': None,
             'metadata': None,
         }
-        _populate_json_object(self, dict, mapping)
+        _populate_json_object(self, params, mapping)
 
 
 class Diff(object):
-    def __init__(self, revision, dict):
+    def __init__(self, revision, params):
         self.revision = revision
-        self.all_params = dict
+        self.all_params = params
         mapping = {
             'id': None,
             'parent': None,
             'sourceControlBaseRevision': 'src_control_base_rev',
             'sourceControlPath': 'src_control_path',
         }
-        _populate_json_object(self, dict, mapping)
+        _populate_json_object(self, params, mapping)
 
-        self.changes = [ChangeSet(self, change) for change in dict['changes']]
+        self.changes = [ChangeSet(self, change)
+                        for change in params['changes']]
 
     def get_patch(self):
         # TODO: it would be nice to be able to compute this on our own,
@@ -66,8 +67,8 @@ class Diff(object):
 
 
 class Revision(object):
-    def __init__(self, dict):
-        self.all_params = dict
+    def __init__(self, params):
+        self.all_params = params
         mapping = {
             'id': None,
             'phid': None,
@@ -86,7 +87,7 @@ class Revision(object):
             'diffs': None,
             #'dateCommitted': 'date_committed',
         }
-        _populate_json_object(self, dict, mapping)
+        _populate_json_object(self, params, mapping)
 
         orig_diffs = self.diffs
         self.diffs = []
@@ -96,7 +97,7 @@ class Revision(object):
             # id --> object.  Convert the older list format to a dictionary if
             # necessary.
             if isinstance(orig_diffs, list):
-                orig_diffs = dict((diff.id, diff) for diff in orig_diffs)
+                orig_diffs = params((diff.id, diff) for diff in orig_diffs)
             for diff_id, diff_dict in orig_diffs.iteritems():
                 diff = Diff(self, diff_dict)
                 self.diffs.append(diff)
