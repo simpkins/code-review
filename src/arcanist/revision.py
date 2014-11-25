@@ -61,7 +61,7 @@ class Diff(object):
                              stderr=subprocess.PIPE)
         (out, err) = p.communicate()
         if p.returncode != 0:
-            cmd_str = ' '.join(arg in cmd)
+            cmd_str = ' '.join(cmd)
             raise ArcanistError('error running "%s": %s' % (cmd_str, err))
         return out
 
