@@ -1,4 +1,4 @@
-#!/usr/local/bin/python -tt
+#!/usr/bin/python -tt
 #
 # Copyright 2009-2010 Facebook, Inc.
 #
@@ -34,7 +34,7 @@ Configuration:
   to view new files.  If none of these are set, vi is used.
 """
 
-import optparse
+import argparse
 import os
 import sys
 
@@ -53,135 +53,98 @@ RETCODE_DIFFCAMP_ERROR = 2
 f_progname = os.path.basename(sys.argv[0])
 
 
-class OptionsError(Exception):
-    pass
-
-
-class UsageError(Exception):
-    pass
-
-
 class NoDiffsError(Exception):
     pass
 
 
-class Options(optparse.OptionParser):
-    def __init__(self):
-        optparse.OptionParser.__init__(self, add_help_option=False,
-                                        usage='%prog [options]')
-        self.add_option('-c', '--commit',
-                        action='store', dest='commit', default=None,
-                        help='Diff the specified commit against its parent')
-        self.add_option('-d', '--differential', action='store',
-                        dest='differential', default=None,
-                        help='Review the specified differential revision')
-        self.add_option('--onto',
-                        action='store', dest='onto', metavar='COMMIT',
-                        default=None,
-                        help='Apply differential patches onto the specified '
-                             'commit')
-        self.add_option('--cached',
-                        action='store_true', dest='cached', default=False,
-                        help='Diff against the index instead of the working '
-                             'tree')
-        self.add_option('--git-dir',
-                        action='store', dest='git_dir',
-                        metavar='DIRECTORY', default=None,
-                        help='Path to the git repository directory')
-        self.add_option('--work-tree',
-                        action='store', dest='work_tree',
-                        metavar='DIRECTORY', default=None,
-                        help='Path to the git repository working tree')
-        self.add_option('-?', '--help',
-                        action='callback', callback=self.__helpCallback,
-                        help='Print this help message and exit')
+def parse_args():
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument('-c', '--commit',
+                    action='store', dest='commit', default=None,
+                    help='Diff the specified commit against its parent')
+    ap.add_argument('-d', '--differential', action='store',
+                    dest='differential', default=None,
+                    help='Review the specified differential revision')
+    ap.add_argument('--onto',
+                    action='store', dest='onto', metavar='COMMIT',
+                    default=None,
+                    help='Apply differential patches onto the specified '
+                    'commit')
+    ap.add_argument('--cached',
+                    action='store_true', dest='cached', default=False,
+                    help='Diff against the index instead of the working tree')
+    ap.add_argument('--git-dir',
+                    action='store', dest='git_dir',
+                    metavar='DIRECTORY', default=None,
+                    help='Path to the git repository directory')
+    ap.add_argument('--work-tree',
+                    action='store', dest='work_tree',
+                    metavar='DIRECTORY', default=None,
+                    help='Path to the git repository working tree')
+    ap.add_argument('-?', '--help',
+                    action='help', help='Print this help message and exit')
+    ap.add_argument('parent_commit',
+                    nargs='?', help='The parent commit to diff against')
+    ap.add_argument('child_commit',
+                    nargs='?', help='The child commit to diff against')
 
-    def __helpCallback(self, option, opt, value, parser):
-        raise UsageError()
+    args = ap.parse_args()
 
-    def error(self, msg):
-        # This is called automatically by optparse when an error in the command
-        # line options is encountered.
-        raise OptionsError(msg)
+    # --onto is only valid with --differential
+    if args.onto is not None and args.differential is None:
+        ap.error('--onto is only valid when used with --differential')
 
-    def __getattr__(self, name):
-        if name.startswith('__'):
-            raise AttributeError(name)
-
-        # Allow attributes of self.__options to be accessed directly
-        return getattr(self.__options, name)
-
-    def parse_argv(self, argv):
-        # parse the options
-        (self.__options, args) = self.parse_args(argv[1:])
-
-        # --onto is only valid with --differential
-        if (self.__options.onto is not None and
-            self.__options.differential is None):
-            raise OptionsError('--onto is only valid when used with '
-                               '--differential')
-
-        # Parse the commit arguments
-        if self.__options.commit is not None:
-            # If --commit was specified, diff that commit against its parent
-            if self.__options.differential is not None:
-                msg = '--commit and --differential are mutually exclusive'
-                raise OptionsError(msg)
-            if self.__options.cached:
-                msg = '--commit and --cached are mutually exclusive'
-                raise OptionsError(msg)
-            if args:
-                msg = ('additional commit arguments may not be specified '
-                       'with --commit')
-                raise OptionsError(msg)
-
-            self.parent_commit = self.__options.commit + '^'
-            self.child_commit = self.__options.commit
-        elif self.__options.differential is not None:
-            # If --differential was specified,
-            # review that differential revision
-            if self.__options.cached:
-                msg = '--differential and --cached are mutually exclusive'
-                raise OptionsError(msg)
-            if args:
-                msg = ('additional commit arguments may not be specified '
-                       'with --differential')
-                raise OptionsError(msg)
-
-            # We can't compute the parent and child commits now.
-            # The code will not use them if it sees that self.differential is
-            # set.
-            self.parent_commit = None
-            self.child_commit = None
-        else:
-            # Default parent and child commits, if not otherwise specified
-            if self.__options.cached:
-                self.parent_commit = git.COMMIT_HEAD
-                self.child_commit = git.COMMIT_INDEX
-            else:
-                self.parent_commit = git.COMMIT_INDEX
-                self.child_commit = git.COMMIT_WD
-
-            # Parse the remaining arguments
-            num_args = len(args)
-            if num_args == 1:
-                self.parent_commit = args[0]
-            elif num_args == 2:
-                if self.__options.cached:
-                    msg = 'cannot specify --cached with two commits'
-                    raise OptionsError(msg)
-                self.parent_commit = args[0]
-                self.child_commit = args[1]
-            elif num_args > 2:
-                raise OptionsError('trailing arguments: ' + ' '.join(args[2:]))
+    _resolve_commits(args)
+    return args
 
 
-def error_msg(msg):
-    sys.stderr.write('%s: error: %s\n' % (f_progname, msg))
+def _resolve_commits(args):
+    # Parse the commit arguments
+    if args.commit is not None:
+        # If --commit was specified, diff that commit against its parent
+        if args.differential is not None:
+            ap.error('--commit and --differential are mutually exclusive')
+        if args.cached:
+            ap.error('--commit and --cached are mutually exclusive')
+        if not (args.parent_commit is None and args.child_commit is None):
+            ap.error('additional commit arguments may not be specified '
+                     'with --commit')
 
+        args.parent_commit = args.commit + '^'
+        args.child_commit = args.commit
+        return
 
-def warning_msg(msg):
-    sys.stderr.write('%s: warning: %s\n' % (f_progname, msg))
+    if args.differential is not None:
+        # If --differential was specified,
+        # review that differential revision
+        if args.cached:
+            ap.error('--differential and --cached are mutually exclusive')
+        if not (args.parent_commit is None and args.child_commit is None):
+            ap.error('additional commit arguments may not be specified '
+                     'with --differential')
+        # We can't compute the parent and child commits now.
+        # The code will not use them if it sees that args.differential is
+        # set.
+        return
+
+    if args.cached:
+        # Diff HEAD or some other parent against the index
+        if args.child_commit is not None:
+            ap.error('cannot specify --cached with two commits')
+        args.child_commit = git.COMMIT_INDEX
+        if args.parent_commit is None:
+            args.parent_commit = git.COMMIT_HEAD
+        return
+
+    # If we are still here there were no special arguments.
+    # Just use the parent and child arguments.
+    # The child is the working directory, unless otherwise specified.
+    if args.child_commit is None:
+        args.child_commit = git.COMMIT_WD
+    # If neither child or parent is specified, diff the working
+    # directory against the index.
+    if args.parent_commit is None:
+        args.parent_commit = git.COMMIT_INDEX
 
 
 def setup_diffcamp_review(repo, options):
@@ -237,31 +200,20 @@ def setup_diffcamp_review(repo, options):
 
 
 def main(argv):
-    # Parse the command line options
-    options = Options()
-    try:
-        options.parse_argv(argv)
-    except OptionsError, error:
-        options.print_usage(sys.stderr)
-        error_msg(error)
-        return RETCODE_ARGUMENTS_ERROR
-    except UsageError, error:
-        options.print_help()
-        return RETCODE_SUCCESS
+    args = parse_args()
 
     # Get a Repository object
-    repo = git.get_repo(git_dir=options.git_dir,
-                        working_dir=options.work_tree)
+    repo = git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
 
-    if options.differential:
+    if args.differential:
         try:
-            rev = setup_diffcamp_review(repo, options)
+            rev = setup_diffcamp_review(repo, args)
         except (NoSuchRevisionError, git.PatchFailedError,
                 NoDiffsError), ex:
-            error_msg(ex)
+            sys.stderr.write('%s: error: %s\n' % (f_progname, ex))
             return RETCODE_DIFFCAMP_ERROR
     else:
-        diff = repo.getDiff(options.parent_commit, options.child_commit)
+        diff = repo.getDiff(args.parent_commit, args.child_commit)
         rev = review.Review(repo, diff)
 
     return review.CliReviewer(rev).run()
