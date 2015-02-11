@@ -33,7 +33,7 @@ class TmpFile(object):
 
         self.tmp_file = None
 
-        if self.commit == git.COMMIT_WD:
+        if repo.is_working_dir(self.commit):
             self.tmp_path = os.path.join(repo.getWorkingDir(), path)
         else:
             prefix = 'git-review-%s-' % (os.environ['USER'])
@@ -42,7 +42,7 @@ class TmpFile(object):
                                                         suffix=suffix)
             self.tmp_path = self.tmp_file.name
             # Invoke git to write the blob contents into the temporary file
-            self.repo.getBlobContents('%s:%s' % (self.commit, self.path),
+            self.repo.getBlobContents(self.commit, self.path,
                                       outfile=self.tmp_file)
 
     def __del__(self):
@@ -75,8 +75,9 @@ def sort_reasonably(entries):
 
 
 class Review(object):
-    def __init__(self, repo, diff):
-        self.repo = repo
+    def __init__(self, scm, diff):
+        self.scm = scm
+        self.repo = scm.repo
         self.diff = diff
 
         self.commit_aliases = {}
@@ -179,13 +180,7 @@ class Review(object):
         expanded_commit = self.expand_commit_name(commit)
 
         # Fully expand the commit name to a SHA1
-        # git.COMMIT_INDEX and git.COMMIT_WD are special names we only use
-        # internally, and are unknown to git.
-        if (expanded_commit == git.COMMIT_INDEX or
-            expanded_commit == git.COMMIT_WD):
-            sha1 = expanded_commit
-        else:
-            sha1 = self.repo.getCommitSha1(expanded_commit)
+        sha1 = self.repo.getCommitSha1(expanded_commit)
 
         self.commit_aliases[alias] = sha1
 
@@ -193,12 +188,4 @@ class Review(object):
       del self.commit_aliases[alias]
 
     def expand_commit_name(self, name):
-        # Split apart the commit name from any suffix
-        commit_name, suffix = git.commit.split_rev_name(name)
-
-        try:
-            real_commit = self.commit_aliases[commit_name]
-        except KeyError:
-            real_commit = commit_name
-
-        return real_commit + suffix
+        return self.scm.expand_commit_name(name, self.commit_aliases)

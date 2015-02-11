@@ -170,6 +170,9 @@ class Repository(object):
     def getCommit(self, name):
         return git_commit.get_commit(self, name)
 
+    def is_working_dir(self, commit):
+        return commit == constants.COMMIT_WD
+
     def getCommitSha1(self, name, extra_args=None):
         """
         repo.getCommitSha1(name) --> sha1
@@ -179,6 +182,11 @@ class Repository(object):
         underlying commit object referred to in the tag.  (Use getSha1() if
         you want to get the SHA1 of the tag object itself.)
         """
+        # COMMIT_INDEX and COMMIT_WD are special names we only use internally,
+        # and are unknown to git.
+        if name == constants.COMMIT_INDEX or name == constants.COMMIT_WD:
+            return name
+
         # Note: 'git rev-list' returns the SHA1 value of the commit,
         # even if "name" refers to a tag object.
         cmd = ['rev-list', '-1']
@@ -271,7 +279,7 @@ class Repository(object):
             reason = 'unknown revision or path not in the working tree'
             raise AmbiguousArgumentError(name, reason)
 
-    def getBlobContents(self, name, outfile=None):
+    def getBlobContents(self, commit, path, outfile=None):
         """
         Get the contents of a blob object.
 
@@ -280,15 +288,16 @@ class Repository(object):
         file specified by outfile.  outfile may be a file object, file
         descriptor, or file name.
 
-        A NoSuchBlobError error will be raised if name does not refer to a
-        valid object.  A NotABlobError will be raised if name refers to an
-        object that is not a blob.
+        A NoSuchBlobError error will be raised if the specified commit and path
+        does not refer to a valid object.  A NotABlobError will be raised if
+        the path refers to an object that is not a blob.
         """
         if outfile is None:
             stdout = subprocess.PIPE
         else:
             stdout = outfile
 
+        name = '%s:%s' % (commit, path)
         cmd = ['cat-file', 'blob', name]
         try:
             out = self.runSimpleGitCmd(cmd, stdout=stdout)

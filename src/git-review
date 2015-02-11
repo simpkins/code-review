@@ -39,6 +39,9 @@ import os
 import sys
 
 import gitreview.git as git
+import gitreview.hgapi as hgapi
+from gitreview.git.scm import GitAPI
+from gitreview.hgapi.scm import HgAPI
 import gitreview.review as review
 
 from arcanist.gitapply import RevisionApplier as ArcRevisionApplier
@@ -81,6 +84,10 @@ def parse_args():
                     action='store', dest='work_tree',
                     metavar='DIRECTORY', default=None,
                     help='Path to the git repository working tree')
+    ap.add_argument('--hg-repo',
+                    action='store', dest='hg_repo',
+                    metavar='DIRECTORY', default=None,
+                    help='Path to the mercurial repository')
     ap.add_argument('-?', '--help',
                     action='help', help='Print this help message and exit')
     ap.add_argument('parent_commit',
@@ -94,11 +101,10 @@ def parse_args():
     if args.onto is not None and args.differential is None:
         ap.error('--onto is only valid when used with --differential')
 
-    _resolve_commits(args)
-    return args
+    return ap, args
 
 
-def _resolve_commits(args):
+def _resolve_commits_common(ap, args):
     # Parse the commit arguments
     if args.commit is not None:
         # If --commit was specified, diff that commit against its parent
@@ -112,7 +118,7 @@ def _resolve_commits(args):
 
         args.parent_commit = args.commit + '^'
         args.child_commit = args.commit
-        return
+        return True
 
     if args.differential is not None:
         # If --differential was specified,
@@ -125,6 +131,13 @@ def _resolve_commits(args):
         # We can't compute the parent and child commits now.
         # The code will not use them if it sees that args.differential is
         # set.
+        return True
+
+    return False
+
+
+def _resolve_commits_git(ap, args):
+    if _resolve_commits_common(ap, args):
         return
 
     if args.cached:
@@ -147,7 +160,21 @@ def _resolve_commits(args):
         args.parent_commit = git.COMMIT_INDEX
 
 
-def setup_diffcamp_review(repo, options):
+def _resolve_commits_hg(ap, args):
+    if _resolve_commits_common(ap, args):
+        return
+
+    if args.cached:
+        ap.error('--cached is only supported in git repositories, '
+                 'not mercurial')
+
+    if args.child_commit is None:
+        args.child_commit = hgapi.COMMIT_WD
+    if args.parent_commit is None:
+        args.parent_commit = hgapi.COMMIT_HEAD
+
+
+def setup_diffcamp_review(scm, options):
     rev_id_str = options.differential
     try:
         # Accept D123456 or just 123456
@@ -160,7 +187,7 @@ def setup_diffcamp_review(repo, options):
 
     print 'Checking for diffs from revision %s' % (rev_id,)
 
-    applier = ArcRevisionApplier(repo, rev_id,
+    applier = ArcRevisionApplier(scm.repo, rev_id,
                                  onto=options.onto, log=sys.stdout)
 
     # Raise an error if this revision has no diffs at all
@@ -175,7 +202,7 @@ def setup_diffcamp_review(repo, options):
     # Compute the list of commits for this differential revision
     # TODO: It would be nicer to save this information in the RevisionApplier,
     # rather than having to re-compute the list here.
-    dc_commit_chain = dcgit.get_dc_commit_chain(repo, rev_id)
+    dc_commit_chain = dcgit.get_dc_commit_chain(scm.repo, rev_id)
 
     # Use the last commit in the chain as the child
     child = dc_commit_chain[-1].commit.sha1
@@ -183,8 +210,8 @@ def setup_diffcamp_review(repo, options):
     # applied to
     parent = dc_commit_chain[-1].appliedOnto
 
-    diff = repo.getDiff(parent, child)
-    rev = review.Review(repo, diff)
+    diff = scm.repo.getDiff(parent, child)
+    rev = review.Review(scm, diff)
 
     # Add commit aliases for each individual diff
     n = 0
@@ -199,22 +226,70 @@ def setup_diffcamp_review(repo, options):
     return rev
 
 
-def main(argv):
-    args = parse_args()
+def find_repo(ap, args):
+    if args.git_dir is not None or args.work_tree is not None:
+        if args.hg_repo is not None:
+            ap.error('Cannot specify both a mercurial and a git repository')
+        repo = git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
+        return GitAPI(repo)
 
-    # Get a Repository object
-    repo = git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
+    if args.hg_repo is not None:
+        repo = hgapi.Repository(args.hg_repo)
+        return HgAPI(repo)
+
+    # Search upwards for a mercurial or a git repository
+    cwd = os.getcwd()
+
+    ceiling_dirs = []
+    if os.environ.has_key('GIT_CEILING_DIRECTORIES'):
+        ceiling_dirs = os.environ['GIT_CEILING_DIRECTORIES'].split(':')
+    ceiling_dirs.append(os.path.sep) # Add the root directory
+
+    path = os.path.normpath(cwd)
+    while True:
+        # Check to see if this directory contains a .git file or directory
+        ret = git.check_git_path(path)
+        if ret is not None:
+            return GitAPI(git.get_repo(ret[0], ret[1]))
+
+        # Check to see if this directory contains a .hg directory
+        if hgapi.is_hg_repo(path):
+            return HgAPI(hgapi.Repository(path))
+
+        # Check to see if this directory looks like a git directory
+        if git.is_git_dir(path):
+            return GitAPI(git.get_repo(path))
+
+        # If the parent_dir is one of the ceiling directories,
+        # we should stop before examining it.  The current directory
+        # does not appear to be inside a git repository.
+        parent_dir = os.path.dirname(path)
+        if parent_dir in ceiling_dirs:
+            raise git.NotARepoError(cwd)
+
+        path = parent_dir
+
+
+def main(argv):
+    ap, args = parse_args()
+
+    # Find the repository we are operating in
+    scm = find_repo(ap, args)
+    if isinstance(scm.repo, hgapi.Repository):
+        _resolve_commits_hg(ap, args)
+    else:
+        _resolve_commits_git(ap, args)
 
     if args.differential:
         try:
-            rev = setup_diffcamp_review(repo, args)
+            rev = setup_diffcamp_review(scm, args)
         except (NoSuchRevisionError, git.PatchFailedError,
                 NoDiffsError), ex:
             sys.stderr.write('%s: error: %s\n' % (f_progname, ex))
             return RETCODE_DIFFCAMP_ERROR
     else:
-        diff = repo.getDiff(args.parent_commit, args.child_commit)
-        rev = review.Review(repo, diff)
+        diff = scm.repo.getDiff(args.parent_commit, args.child_commit)
+        rev = review.Review(scm, diff)
 
     return review.CliReviewer(rev).run()
 

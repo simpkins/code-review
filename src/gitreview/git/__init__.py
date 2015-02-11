@@ -107,7 +107,7 @@ def _get_git_dir(git_dir=None, cwd=None):
     path = os.path.normpath(cwd)
     while True:
         # Check to see if this directory contains a .git file or directory
-        ret = _check_git_path(path)
+        ret = check_git_path(path)
         if ret is not None:
             return ret
 
@@ -127,7 +127,7 @@ def _get_git_dir(git_dir=None, cwd=None):
         path = parent_dir
 
 
-def _check_git_path(path):
+def check_git_path(path):
     git_path = os.path.join(path, '.git')
     try:
         stat_info = os.lstat(git_path)
