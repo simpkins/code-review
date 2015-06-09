@@ -10,6 +10,7 @@ from . import revision
 from gitreview.diffcamp.dcgit import get_dc_commit_chain
 from gitreview import git
 from gitreview.git import svn as git_svn
+import gitreview.hgapi as hgapi
 
 
 def _compute_patch_paths(repo, diff, apply_to):
@@ -17,6 +18,7 @@ def _compute_patch_paths(repo, diff, apply_to):
     Compute the strip and prefix parameters for git.Repository.applyPatch()
     Returns (strip, prefix)
     """
+    return (1, None)
     if not diff.src_control_path:
         # If the diff doesn't have a source control path, we don't have much
         # information to go on.  This shouldn't occur too often.  Most of our
@@ -179,6 +181,22 @@ class RevisionApplier(object):
         else:
             self.rev = rev
 
+        if False:
+            print('Rev')
+            for name in dir(self.rev):
+                if name.startswith('__'):
+                    continue
+                print('  %r: %r' % (name, getattr(self.rev, name)))
+
+            for diff in self.rev.diffs:
+                print('\nDiff')
+                for name in dir(diff):
+                    if name.startswith('__'):
+                        continue
+                    print('  %r: %r' % (name, getattr(diff, name)))
+            import sys
+            sys.exit(1)
+
         if ref_name is None:
             self.ref_name = 'refs/diffcamp/%d' % (self.rev.id,)
 
@@ -288,11 +306,16 @@ class RevisionApplier(object):
         if self.onto:
             onto_list.append(self.onto)
         if diff.src_control_base_rev:
+            # TODO: Handle the case where the src_control_base_rev refers to a
+            # git revision, but the local repo is a mercurial repository.
             onto_list.append(diff.src_control_base_rev)
         if self.prev_diff_onto:
             onto_list.append(self.prev_diff_onto)
 
-        onto_list.append('HEAD')
+        if isinstance(self.repo, hgapi.Repository):
+            onto_list.append('.')
+        else:
+            onto_list.append('HEAD')
 
         success = False
         onto_tried = []

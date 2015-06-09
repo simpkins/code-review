@@ -92,8 +92,13 @@ class Repository(object):
                             'working directory')
 
         try:
-            self._get_node(name)
-        except mercurial.error.RepoLookupError:
+            node = self._get_node(name)
+        except mercurial.error.RepoError:
+            # Note that mercurial normally throws RepoLookupError here when
+            # given an unknown revision name, but the Facebook gitrevset code
+            # just throws RepoError if given an unknown git revision.
+            #
+            # Assume any error means bad revision for now.
             raise NoSuchCommitError(name)
 
         return FakeCommit(node)

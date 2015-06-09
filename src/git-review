@@ -188,6 +188,16 @@ def setup_diffcamp_review(scm, options):
 
     print 'Checking for diffs from revision %s' % (rev_id,)
 
+    return setup_diffcamp_review_impl(scm, options, rev_id)
+
+
+def setup_diffcamp_review_impl(scm, options, rev_id):
+    import arcanist.apply_diffs
+    arcanist.apply_diffs.apply_diffs(scm.repo, rev_id)
+    sys.exit(1)
+
+
+def xsetup_diffcamp_review_impl(scm, options, rev_id):
     applier = ArcRevisionApplier(scm.repo, rev_id,
                                  onto=options.onto, log=sys.stdout)
 
