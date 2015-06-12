@@ -136,8 +136,12 @@ class Revision(object):
 
 
 def get_revision(repo, rev_id):
-    conduit = ArcanistConduitClient(repo)
-    conduit.connect()
+    if isinstance(repo, ArcanistConduitClient):
+        conduit = repo
+    else:
+        conduit = ArcanistConduitClient(repo)
+        conduit.connect()
+
     try:
         revision = conduit.call_method('differential.getrevision',
                                        revision_id=rev_id)

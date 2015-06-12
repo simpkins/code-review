@@ -9,6 +9,7 @@ from gitreview.hgapi import FakeCommit
 
 from mercurial.context import memctx, memfilectx
 from mercurial.scmutil import revrange
+import mercurial.util
 
 
 class BadPatchError(Exception):
@@ -27,7 +28,7 @@ class ArcanistHg(object):
     def __init__(self, repo):
         self.repo = repo
 
-    def apply_diff(self, diff):
+    def apply_diff(self, diff, rev, metadata):
         logging.debug('Applying diff %s', diff.id)
 
         # Phabricator lists the base revision that this diff applied to.
@@ -38,7 +39,7 @@ class ArcanistHg(object):
             # The diff should apply cleanly to it.
             logging.debug('found base revision %s for diff %s',
                           parent.node.hex(), diff.id)
-            return self._apply_diff(parent.node, diff)
+            return self._apply_diff(parent.node, diff, rev, metadata)
 
         # We didn't find the base commit specified by phabricator.
         # Try to find another commit that works instead.
@@ -68,14 +69,14 @@ class ArcanistHg(object):
             node = self.repo.repo[num]
             logging.debug('trying to apply diff %s to %s', diff.id, node.hex())
             try:
-                return self._apply_diff(node, diff)
+                return self._apply_diff(node, diff, rev, metadata)
             except BadPatchError as ex:
                 cur_bad_paths = ex.paths
 
         raise Exception('unable to find a commit where diff %s applies' %
                         (diff.id,))
 
-    def _apply_diff(self, node, diff):
+    def _apply_diff(self, node, diff, rev, metadata):
         # Compute the new file contents for each path.
         # Throw an error if some of them don't apply cleanly.
         new_data = {}
@@ -102,14 +103,22 @@ class ArcanistHg(object):
 
         fileset = set(new_data)
 
-        # TODO: Also add the previous rev from the diff as a parent.
-        parents = (node, None)
-        # TODO: Put a useful message here
-        msg = 'test commit'
-        ctx = memctx(self.repo.repo, parents, msg, fileset, getfilectx)
+        if metadata.prev_commit is None:
+            parents = (node, None)
+        else:
+            parents = (node, metadata.prev_commit.node)
+
+        msg = metadata.message
+        user = '%s <%s>' % (metadata.author_name, metadata.author_email)
+        date = mercurial.util.makedate(metadata.timestamp)
+
+        ctx = memctx(self.repo.repo, parents, msg, fileset, getfilectx,
+                     user=user, date=date)
         node_id = self.repo.repo.commitctx(ctx)
         node = self.repo.repo[node_id]
         logging.debug('committed new node: %r' % (node.hex(),))
+
+        return FakeCommit(node)
 
     def _apply_diff_path(self, node, diff, change, path):
         if change is None:
