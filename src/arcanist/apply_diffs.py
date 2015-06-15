@@ -10,7 +10,12 @@ from . import git as arc_git
 
 from gitreview import hgapi
 
+import logging
 import pprint
+
+
+def apply_diffs(repo, rev_id):
+    return _Applier(repo, rev_id).run()
 
 
 class CommitInfo(object):
@@ -22,41 +27,62 @@ class CommitInfo(object):
         self.prev_commit = prev
 
 
-def apply_diffs(repo, rev_id):
-    conduit = ArcanistConduitClient(repo.workingDir)
-    conduit.connect()
+class _Applier(object):
+    def __init__(self, repo, rev_id):
+        self.conduit = None
+        self.rev = None
+        self._commit_msg = None
 
-    rev = revision.get_revision(conduit, rev_id)
-    if isinstance(repo, hgapi.Repository):
-        arc_scm = arc_hg.ArcanistHg(repo)
-    else:
-        arc_scm = arc_hg.ArcanistGit(repo)
+        self.repo = repo
+        self.rev_id = rev_id
+        if isinstance(repo, hgapi.Repository):
+            self.arc_scm = arc_hg.ArcanistHg(repo)
+        else:
+            self.arc_scm = arc_hg.ArcanistGit(repo)
 
-    try:
-        user_phids = [rev.author_phid] + rev.reviewer_phids
-        users = conduit.call_method('user.query', phids=user_phids)
-        user_map = dict((u['phid'], u) for u in users)
-    except ConduitClientError as ex:
-        pass
+    def run(self):
+        self.conduit = ArcanistConduitClient(self.repo.workingDir)
+        self.conduit.connect()
+        self.rev = revision.get_revision(self.conduit, self.rev_id)
 
-    commit_msg = _get_commit_msg(rev, user_map)
+        existing = self.arc_scm.find_diff_commits(self.rev)
 
-    prev_commit = None
-    for diff in rev.diffs:
-        info = CommitInfo(author_name=diff.all_params['authorName'],
+        results = []
+        for diff in self.rev.diffs:
+            commit = existing.get(diff.id)
+            if commit is not None:
+                logging.debug('Diff %s already applied as %s',
+                              diff.id, commit)
+                results.append(commit)
+                continue
+
+            if results:
+                prev_commit = results[-1]
+            else:
+                prev_commit = None
+            info = self._get_commit_info(diff, prev_commit)
+            commit = self.arc_scm.apply_diff(diff, self.rev, info)
+            results.append(commit)
+
+        return results
+
+    def _get_commit_info(self, diff, parent_commit):
+        if self._commit_msg is None:
+            self._commit_msg = self._get_commit_msg()
+        return CommitInfo(author_name=diff.all_params['authorName'],
                           author_email=diff.all_params['authorEmail'],
                           timestamp=diff.all_params['dateCreated'],
-                          message=commit_msg,
-                          prev=prev_commit)
-        commit = arc_scm.apply_diff(diff, rev, info)
-        prev_commit = commit
+                          message=self._commit_msg,
+                          prev=parent_commit)
 
+    def _get_commit_msg(self):
+        user_phids = [self.rev.author_phid] + self.rev.reviewer_phids
+        users = self.conduit.call_method('user.query', phids=user_phids)
+        user_map = dict((u['phid'], u) for u in users)
 
-def _get_commit_msg(rev, user_map):
-    reviewer_names = ', '.join(user_map[phid]['userName']
-                               for phid in rev.reviewer_phids)
-
-    template = '''\
+        reviewer_names = ', '.join(user_map[phid]['userName']
+                                   for phid in self.rev.reviewer_phids)
+        template = '''\
 {title}
 
 Summary:
@@ -69,11 +95,11 @@ Reviewers: {reviewers}
 
 Differential Revision: {uri}
 '''
-    return template.format(title=rev.title,
-                           summary=rev.summary,
-                           test_plan=rev.test_plan,
-                           reviewers=reviewer_names,
-                           uri=rev.uri)
+        return template.format(title=self.rev.title,
+                               summary=self.rev.summary,
+                               test_plan=self.rev.test_plan,
+                               reviewers=reviewer_names,
+                               uri=self.rev.uri)
 
 
 def _dump_changes(diff):

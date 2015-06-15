@@ -2,7 +2,10 @@
 #
 # Copyright 2004-present Facebook. All Rights Reserved.
 #
+import errno
 import logging
+import os
+import re
 
 from gitreview.git.exceptions import NoSuchCommitError
 from gitreview.hgapi import FakeCommit
@@ -118,6 +121,7 @@ class ArcanistHg(object):
         node = self.repo.repo[node_id]
         logging.debug('committed new node: %r' % (node.hex(),))
 
+        self._save_diff_mapping(diff, node)
         return FakeCommit(node)
 
     def _apply_diff_path(self, node, diff, change, path):
@@ -178,3 +182,45 @@ class ArcanistHg(object):
             print(commit)
 
         return commit
+
+    def _get_diff_mapping_path(self):
+        return os.path.join(self.repo.workingDir, '.hg', 'phabricator_diffs')
+
+    def _load_diff_mappings(self):
+        results = {}
+        regex = re.compile(r'^([0-9]+): ([0-9a-fA-F]+)$')
+        try:
+            with open(self._get_diff_mapping_path(), 'r') as f:
+                for line in f:
+                    m = regex.match(line)
+                    diff_id = int(m.group(1))
+                    node_id = m.group(2)
+                    results[diff_id] = node_id
+        except IOError as ex:
+            if ex.errno != errno.ENOENT:
+                raise
+            return {}
+
+        return results
+
+    def _save_diff_mapping(self, diff, node):
+        # We use a custom format here instead of treating the entire file as a
+        # single json chunk.  This way we can just append one line at a time,
+        # instead of having to re-write the entire file each time.
+
+        line = '%d: %s\n' % (diff.id, node.hex())
+        # TODO: We should really add some locking around this update.
+        with open(self._get_diff_mapping_path(), 'a') as f:
+            f.write(line)
+
+    def find_diff_commits(self, rev):
+        mappings = self._load_diff_mappings()
+
+        results = {}
+        for diff in rev.diffs:
+            node_id = mappings.get(diff.id)
+            if node_id is not None:
+                node = self.repo.repo[node_id]
+                results[diff.id] = FakeCommit(node)
+
+        return results

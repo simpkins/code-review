@@ -178,6 +178,9 @@ class FakeCommit(object):
     def comment(self):
         return self.node.description()
 
+    def __str__(self):
+        return self.node.hex()
+
 
 def is_hg_repo(path):
     return os.path.exists(os.path.join(path, '.hg', 'hgrc'))
