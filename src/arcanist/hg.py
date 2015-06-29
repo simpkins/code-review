@@ -50,6 +50,10 @@ class ArcanistHg(object):
         # Find all commits that modified the files in question.
         commit_nums = set()
         for change in diff.changes:
+            if change.old_path is None:
+                # Ignore files added by this diff.  There shouldn't be any
+                # conflicts applying them to any commit.
+                continue
             old_path = change.old_path.encode('utf-8')
             flog = self.repo.repo.file(old_path)
             for idx in flog:
@@ -85,12 +89,15 @@ class ArcanistHg(object):
         new_data = {}
         bad_paths = {}
         for change in diff.changes:
-            old_path = change.old_path.encode('utf-8')
+            if change.old_path is None:
+                old_path = None
+            else:
+                old_path = change.old_path.encode('utf-8')
             new_path = change.current_path.encode('utf-8')
             try:
                 path_data = self._apply_diff_path(node, diff, change, old_path)
                 new_data[new_path] = path_data
-                if old_path != new_path:
+                if old_path is not None and old_path != new_path:
                     new_data[old_path] = None
             except PathPatchError as ex:
                 bad_paths[old_path] = ex
@@ -128,7 +135,10 @@ class ArcanistHg(object):
         if change is None:
             return None
 
-        old_data = self.repo.getBlobContents(node, path)
+        if path is None:
+            old_data = ''
+        else:
+            old_data = self.repo.getBlobContents(node, path)
         return self._patch_data(old_data, change)
 
     def _patch_data(self, old, change):
