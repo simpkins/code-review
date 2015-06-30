@@ -3,6 +3,7 @@
 # Copyright 2004-present Facebook. All Rights Reserved.
 #
 import errno
+import heapq
 import logging
 import os
 import re
@@ -12,6 +13,7 @@ from gitreview.hgapi import FakeCommit
 
 from mercurial.context import memctx, memfilectx
 from mercurial.scmutil import revrange
+import mercurial.error
 import mercurial.util
 
 
@@ -47,15 +49,98 @@ class ArcanistHg(object):
         # We didn't find the base commit specified by phabricator.
         # Try to find another commit that works instead.
         #
-        # Find all commits that modified the files in question.
+        # Try each commit that modified any of the files in question.
+        #
+        # TODO: We could be smarter here by keeping track of how many files the
+        # diff doesn't apply to, and how many hunks/lines fail for each file.
+        # We could then target only changes that affect the files that still
+        # have failures.
+        #
+        # This would also let us abort if the patch attempts start getting
+        # worse rather than better.
+        for num in self._candidate_commits(diff):
+            node = self.repo.repo[num]
+            logging.debug('trying to apply diff %s to %s', diff.id, node.hex())
+            try:
+                return self._apply_diff(node, diff, rev, metadata)
+            except BadPatchError as ex:
+                cur_bad_paths = ex.paths
+
+        raise Exception('unable to find a commit where diff %s applies' %
+                        (diff.id,))
+
+    def _candidate_commits(self, diff):
+        # If we aren't using remotefilelog, then we can do a fast walk
+        # of the filelogs.  If the remotefilelog extension is being used,
+        # we have to walk backwards through ancestor commits of the relevant
+        # local heads.
+        flog = self.repo.repo.file('.')
+        if hasattr(flog, '__iter__'):
+            # We can use the faster filelog method
+            return self._normal_candidate_commits(diff)
+        else:
+            # We have to use the remotefilelog-compatible version
+            return self._remotefilelog_candidate_commits(diff)
+
+    def _remotefilelog_candidate_commits(self, diff):
+        '''
+        Walk all ancestors of remote/master which touched any of the modified
+        files.
+        '''
+        # We'll walk through all commits that changed any of the modified
+        # files.  First get ancestor generators for each file  First get
+        # ancestor generators for each file.
+
+        seen = set()
+        rev_heap = []
+        cidx = 0
+        relevant_heads = 'bookmark() + (head() - hidden() - public())'
+        for commit in self.repo.repo.set(relevant_heads):
+            cidx += 1
+
+            for path in self._old_paths(diff):
+                try:
+                    anc = commit.filectx(path).ancestors()
+                except mercurial.error.ManifestLookupError:
+                    continue
+                try:
+                    rev = next(anc).linkrev()
+                    if rev not in seen:
+                        rev_heap.append((-rev, anc))
+                        seen.add(rev)
+                except StopIteration:
+                    pass
+
+        # Now walk backwards through the ancestors, from oldest to newest
+        heapq.heapify(rev_heap)
+        while rev_heap:
+            rev = -rev_heap[0][0]
+            gen = rev_heap[0][1]
+            yield rev
+
+            try:
+                next_rev = next(gen).linkrev()
+                if next_rev in seen:
+                    next_rev = None
+            except StopIteration:
+                next_rev = None
+
+            if next_rev is None:
+                heapq.heappop(rev_heap)
+            else:
+                new_item = (-next_rev, gen)
+                heapq.heappushpop(rev_heap, new_item)
+                seen.add(next_rev)
+
+    def _normal_candidate_commits(self, diff):
+        '''
+        Walk all commits which touched any of the files modified by this diff.
+
+        This method is fast, but doesn't work with the remotefilelog extension.
+        '''
         commit_nums = set()
-        for change in diff.changes:
-            if change.old_path is None:
-                # Ignore files added by this diff.  There shouldn't be any
-                # conflicts applying them to any commit.
-                continue
-            old_path = change.old_path.encode('utf-8')
-            flog = self.repo.repo.file(old_path)
+        for path in self._old_paths(diff):
+            flog = self.repo.repo.file(path)
             for idx in flog:
                 commit_num = flog.linkrev(idx)
                 commit_nums.add(commit_num)
@@ -66,27 +151,13 @@ class ArcanistHg(object):
             raise Exception('TODO: apply onto remote/master')
 
         # Sort the commit numbers, from highest (most recent) to lowest
-        commit_nums = sorted(commit_nums, reverse=True)
+        return sorted(commit_nums, reverse=True)
 
-        # Try to apply the patch to each of these diffs.
-        #
-        # TODO: We could be smarter here by keeping track of how many files the
-        # diff doesn't apply to, and how many hunks/lines fail for each file.
-        # We could then target only changes that affect the files that still
-        # have failures.
-        #
-        # This would also let us abort if the patch attempts start getting
-        # worse rather than better.
-        for num in commit_nums:
-            node = self.repo.repo[num]
-            logging.debug('trying to apply diff %s to %s', diff.id, node.hex())
-            try:
-                return self._apply_diff(node, diff, rev, metadata)
-            except BadPatchError as ex:
-                cur_bad_paths = ex.paths
-
-        raise Exception('unable to find a commit where diff %s applies' %
-                        (diff.id,))
+    def _old_paths(self, diff):
+        for change in diff.changes:
+            if change.old_path is None:
+                continue
+            yield change.old_path.encode('utf-8')
 
     def _apply_diff(self, node, diff, rev, metadata):
         # Compute the new file contents for each path.
@@ -148,7 +219,10 @@ class ArcanistHg(object):
         if path is None:
             old_data = b''
         else:
-            old_data = self.repo.getBlobContents(node, path)
+            try:
+                old_data = self.repo.getBlobContents(node, path)
+            except mercurial.error.ManifestLookupError:
+                raise BadPatchError(node, [path])
         return self._patch_data(old_data, change)
 
     def _patch_data(self, old, change):
