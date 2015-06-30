@@ -287,6 +287,78 @@ def get_commit(repo, name):
     return Commit(repo, sha1, tree, parents, author, committer, body)
 
 
+def log_commit_paths(repo, rev_args, path_args):
+    sep = '-+*=' * 20
+    format_arg = ('commit %H%n'
+                  'tree %T%n'
+                  'parents %P%n'
+                  'author %an <%ae> %ad%n'
+                  'committer %cn <%ce> %cd%n'
+                  '%n'
+                  '%B%n'
+                  + sep)
+    args = (['log', '--date=raw',] + list(rev_args) +
+            ['--pretty=tformat:' + format_arg, '--'] +
+            list(path_args))
+
+    # FIXME: Direct stderr to a pipe, and read stdout and stderr simultaneously
+    p = repo.popenGitCmd(args, stderr=None)
+
+    while True:
+        line = p.stdout.readline()
+        if not line:
+            break
+        line = line.rstrip()
+
+        parts = line.split(' ', 1)
+        if parts[0] != 'commit':
+            raise Exception('expected commit line, found %r' % (line,))
+        sha1 = parts[1]
+
+        line = p.stdout.readline().rstrip()
+        parts = line.split(' ', 1)
+        if parts[0] != 'tree':
+            raise Exception('expected tree line, found %r' % (line,))
+        tree = parts[1]
+
+        line = p.stdout.readline().rstrip()
+        parts = line.split(' ')
+        if parts[0] != 'parents':
+            raise Exception('expected parents line, found %r' % (line,))
+        parents = parts[1:]
+
+        line = p.stdout.readline().rstrip()
+        parts = line.split(' ', 1)
+        if parts[0] != 'author':
+            raise Exception('expected author line, found %r' % (line,))
+        author = _parse_author(sha1, parts[1], parts[0])
+
+        line = p.stdout.readline().rstrip()
+        parts = line.split(' ', 1)
+        if parts[0] != 'committer':
+            raise Exception('expected committer line, found %r' % (line,))
+        committer = _parse_author(sha1, parts[1], parts[0])
+
+        body_lines = []
+        terminator = sep + '\n'
+        while True:
+            line = p.stdout.readline()
+            if not line:
+                raise Exception('unexpected end of log output')
+            if line == terminator:
+                break
+            body_lines.append(line)
+
+        assert body_lines[-1] == '\n'
+        body = ''.join(body_lines[:-1])
+
+        yield Commit(repo, sha1, tree, parents, author, committer, body)
+
+    retcode = p.wait()
+    if retcode != 0:
+        raise Exception('git log returned a non-zero status')
+
+
 def split_rev_name(name):
     """
       Split a revision name into a ref name and suffix.

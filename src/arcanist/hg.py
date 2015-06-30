@@ -60,6 +60,11 @@ class ArcanistHg(object):
                 commit_num = flog.linkrev(idx)
                 commit_nums.add(commit_num)
 
+        # If this commit only added new files, we should be able to apply it
+        # any where.
+        if not commit_nums:
+            raise Exception('TODO: apply onto remote/master')
+
         # Sort the commit numbers, from highest (most recent) to lowest
         commit_nums = sorted(commit_nums, reverse=True)
 

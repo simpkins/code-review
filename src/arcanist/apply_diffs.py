@@ -38,7 +38,7 @@ class _Applier(object):
         if isinstance(repo, hgapi.Repository):
             self.arc_scm = arc_hg.ArcanistHg(repo)
         else:
-            self.arc_scm = arc_hg.ArcanistGit(repo)
+            self.arc_scm = arc_git.ArcanistGit(repo)
 
     def run(self):
         self.conduit = ArcanistConduitClient(self.repo.workingDir)
