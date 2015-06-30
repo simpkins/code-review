@@ -101,6 +101,11 @@ class ArcanistHg(object):
             new_path = change.current_path.encode('utf-8')
             try:
                 path_data = self._apply_diff_path(node, diff, change, old_path)
+
+                # mercurial will choke with a pretty unhelpful exception
+                # backtrace if we give it unicode data.
+                assert not isinstance(path_data, unicode)
+
                 new_data[new_path] = path_data
                 if old_path is not None and old_path != new_path:
                     new_data[old_path] = None
@@ -141,7 +146,7 @@ class ArcanistHg(object):
             return None
 
         if path is None:
-            old_data = ''
+            old_data = b''
         else:
             old_data = self.repo.getBlobContents(node, path)
         return self._patch_data(old_data, change)
@@ -154,6 +159,8 @@ class ArcanistHg(object):
             # 0-indexed.  (Line 1 is at old_lines[0])
             old_idx = hunk['oldOffset'] - 1
             for line in hunk['corpus'].splitlines():
+                line = line.encode('utf-8')
+
                 if line.startswith(' '):
                     old_line = old_lines[old_idx]
                     if old_line != line[1:]:
@@ -173,7 +180,7 @@ class ArcanistHg(object):
                     raise Exception('unexpected line in diff hunk: %r' %
                                     (line,))
 
-        return '\n'.join(new_lines) + '\n'
+        return b'\n'.join(new_lines) + b'\n'
 
     def find_base_commit(self, diff):
         arc_base_rev = diff.all_params['sourceControlBaseRevision']
