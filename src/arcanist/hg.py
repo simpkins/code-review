@@ -58,8 +58,7 @@ class ArcanistHg(object):
         #
         # This would also let us abort if the patch attempts start getting
         # worse rather than better.
-        for num in self._candidate_commits(diff):
-            node = self.repo.repo[num]
+        for node in self._candidate_commits(diff, metadata):
             logging.debug('trying to apply diff %s to %s', diff.id, node.hex())
             try:
                 return self._apply_diff(node, diff, rev, metadata)
@@ -69,7 +68,12 @@ class ArcanistHg(object):
         raise Exception('unable to find a commit where diff %s applies' %
                         (diff.id,))
 
-    def _candidate_commits(self, diff):
+    def _candidate_commits(self, diff, metadata):
+        # If we have a previously applied diff, try it's parent.
+        # This is likely to be a good guess for where to apply the diff.
+        if metadata.prev_commit is not None:
+            yield metadata.prev_commit.node.p1()
+
         # If we aren't using remotefilelog, then we can do a fast walk
         # of the filelogs.  If the remotefilelog extension is being used,
         # we have to walk backwards through ancestor commits of the relevant
@@ -77,10 +81,13 @@ class ArcanistHg(object):
         flog = self.repo.repo.file('.')
         if hasattr(flog, '__iter__'):
             # We can use the faster filelog method
-            return self._normal_candidate_commits(diff)
+            candidates_fn = self._normal_candidate_commits
         else:
             # We have to use the remotefilelog-compatible version
-            return self._remotefilelog_candidate_commits(diff)
+            candidates_fn = self._remotefilelog_candidate_commits
+
+        for node in candidates_fn(diff):
+            yield node
 
     def _remotefilelog_candidate_commits(self, diff):
         '''
@@ -116,7 +123,7 @@ class ArcanistHg(object):
         while rev_heap:
             rev = -rev_heap[0][0]
             gen = rev_heap[0][1]
-            yield rev
+            yield self.repo.repo[rev]
 
             try:
                 next_rev = next(gen).linkrev()
@@ -151,7 +158,8 @@ class ArcanistHg(object):
             raise Exception('TODO: apply onto remote/master')
 
         # Sort the commit numbers, from highest (most recent) to lowest
-        return sorted(commit_nums, reverse=True)
+        commit_nums.sort(reverse=True)
+        return [self.repo.repo[num] for num in commit_nums]
 
     def _old_paths(self, diff):
         for change in diff.changes:
@@ -235,18 +243,23 @@ class ArcanistHg(object):
             for line in hunk['corpus'].splitlines():
                 line = line.encode('utf-8')
 
+                if old_idx >= len(old_lines):
+                    raise PathPatchError('mismatch at line %d: old file '
+                                         'ends at line %d' %
+                                         (old_idx + 1, len(old_lines)))
+
                 if line.startswith(' '):
                     old_line = old_lines[old_idx]
                     if old_line != line[1:]:
                         raise PathPatchError('mismatch at line %d: %r != %r' %
-                                             (old_idx, old_line, line))
+                                             (old_idx + 1, old_line, line))
                     new_lines.append(old_line)
                     old_idx += 1
                 elif line.startswith('-'):
                     old_line = old_lines[old_idx]
                     if old_line != line[1:]:
                         raise PathPatchError('mismatch at line %d: %r != %r' %
-                                             (old_idx, old_line, line))
+                                             (old_idx + 1, old_line, line))
                     old_idx += 1
                 elif line.startswith('+'):
                     new_lines.append(line[1:])
