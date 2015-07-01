@@ -94,31 +94,44 @@ class ArcanistHg(object):
         Walk all ancestors of remote/master which touched any of the modified
         files.
         '''
-        # We'll walk through all commits that changed any of the modified
-        # files.  First get ancestor generators for each file  First get
-        # ancestor generators for each file.
+        # With remotefilelog, we have to walk backwards down the commit DAG
+        # to find commits that modified the files we are interested in.
+        #
+        # This is the list of heads we start from.  We include remote/master,
+        # plus any other local heads which are not public.
+        #
+        # We exclude other public heads, since the repos I work on generally
+        # have many other public tags and heads that I don't care about, and
+        # are expensive to search through.
+        relevant_heads = 'remote/master + (head() - hidden() - public())'
 
         seen = set()
         rev_heap = []
-        cidx = 0
-        relevant_heads = 'bookmark() + (head() - hidden() - public())'
-        for commit in self.repo.repo.set(relevant_heads):
-            cidx += 1
 
+        # For each head
+        for commit in self.repo.repo.set(relevant_heads):
+            # For each file changed by this diff, get the filectx() in
+            # this commit.
             for path in self._old_paths(diff):
                 try:
-                    anc = commit.filectx(path).ancestors()
+                    fctx = commit.filectx(path)
                 except mercurial.error.ManifestLookupError:
                     continue
-                try:
-                    rev = next(anc).linkrev()
-                    if rev not in seen:
-                        rev_heap.append((-rev, anc))
-                        seen.add(rev)
-                except StopIteration:
-                    pass
 
-        # Now walk backwards through the ancestors, from oldest to newest
+                # Get the most recent commit that touched this file.
+                # If we haven't already found it via another head,
+                # also get an ancestor generator to let us walk backwards
+                # from this commit, and add it to rev_heap.
+                rev = fctx.linkrev()
+                if rev not in seen:
+                    anc = fctx.ancestors()
+                    rev_heap.append((-rev, anc))
+                    seen.add(rev)
+
+        # Now walk backwards through the ancestors, from oldest to newest.
+        #
+        # At each step, we find the most recent commit, yield it to our caller,
+        # and advance it's ancestor generator back one more step.
         heapq.heapify(rev_heap)
         while rev_heap:
             rev = -rev_heap[0][0]
