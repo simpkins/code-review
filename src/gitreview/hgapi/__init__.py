@@ -43,6 +43,10 @@ class Repository(object):
         mercurial.extensions.loadall(self.ui)
         self.repo = mercurial.hg.repository(self.ui, self.path).unfiltered()
 
+    def hasWorkingDirectory(self):
+        # Mercurial doesn't have bare repositories
+        return True
+
     def getDiff(self, parent, child, paths=None):
         entries = DiffFileList(parent, child)
 
