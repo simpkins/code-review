@@ -31,17 +31,32 @@ COMMIT_HEAD = '.'
 class HgError(Exception):
     pass
 
+# TODO: We should probably override methods that print to stdout/stderr,
+# to avoid printing data that would interfere with our user output.
+class CustomUI(mercurial.ui.ui):
+    def __init__(self, src=None):
+        super(CustomUI, self).__init__(src)
+        self._gitreview_aliases = {}
+
+    def configitems(self, section, untrusted=False):
+        normal_return = super(CustomUI, self).configitems(section, untrusted)
+        if section != 'revsetalias':
+            return normal_return
+
+        ret = normal_return[:]
+        for k, v in self._gitreview_aliases.items():
+            ret.append((k, v))
+        return ret
+
 
 class Repository(object):
     def __init__(self, path):
         self.path = path
         self.workingDir = path
 
-        # TODO: We should probably define our own custom UI that won't ever
-        # print to stdout/stderr.
-        self.ui = mercurial.ui.ui()
-        mercurial.extensions.loadall(self.ui)
-        self.repo = mercurial.hg.repository(self.ui, self.path).unfiltered()
+        ui = CustomUI()
+        mercurial.extensions.loadall(ui)
+        self.repo = mercurial.hg.repository(ui, self.path).unfiltered()
 
     def hasWorkingDirectory(self):
         # Mercurial doesn't have bare repositories
@@ -148,8 +163,11 @@ class Repository(object):
         return []
 
     def isRevision(self, name):
-        # FIXME
-        return False
+        try:
+            self.repo[name]
+            return True
+        except Exception as ex:
+            return False
 
 
 class TreeEntry(object):
