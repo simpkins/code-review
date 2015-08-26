@@ -14,18 +14,11 @@ import mercurial.ui
 import mercurial.extensions
 import mercurial.commands
 
+from .constants import *
 from ..git.diff import DiffFileList, DiffEntry, Status
 from ..git.exceptions import NoSuchCommitError
 
 import UserDict
-
-class WorkingDirectoryCommit():
-    def __str__(self):
-        return ':wd'
-
-
-COMMIT_WD = WorkingDirectoryCommit()
-COMMIT_HEAD = '.'
 
 
 class HgError(Exception):
