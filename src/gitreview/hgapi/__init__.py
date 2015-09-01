@@ -125,7 +125,14 @@ class Repository(object):
         return node.hex()
 
     def getBlobContents(self, commit, path, outfile=None):
-        node = self._get_node(commit)
+        if hasattr(commit, 'node'):
+            # Handle the case if the commit argument
+            # is already a mercurial changectx object
+            node = commit
+        else:
+            # Perform a lookup if the commit argument is a string
+            node = self._get_node(commit)
+
         if node is None:
             full_path = os.path.abspath(os.path.join(self.repo.root, path))
             sub_path = os.path.relpath(full_path, self.repo.root)
