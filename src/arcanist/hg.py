@@ -8,6 +8,8 @@ import logging
 import os
 import re
 
+from .err import PatchFailedError
+
 from gitreview.git.exceptions import NoSuchCommitError
 from gitreview.hgapi import FakeCommit
 
@@ -35,6 +37,10 @@ class ArcanistHg(object):
 
     def apply_diff(self, diff, rev, metadata):
         logging.debug('Applying diff %s', diff.id)
+
+        # TODO: Handle fbcode<-->fbsource path name translations.
+        # The diff's project name can be found in
+        # diff.all_params['projectName'].
 
         # Phabricator lists the base revision that this diff applied to.
         # Check to see if this is a known revision in our repository.
@@ -65,8 +71,8 @@ class ArcanistHg(object):
             except BadPatchError as ex:
                 cur_bad_paths = ex.paths
 
-        raise Exception('unable to find a commit where diff %s applies' %
-                        (diff.id,))
+        raise PatchFailedError('unable to find a commit where diff %s '
+                               'applies' % (diff.id,))
 
     def _candidate_commits(self, diff, metadata):
         # If we have a previously applied diff, try it's parent.

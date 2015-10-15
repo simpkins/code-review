@@ -105,12 +105,10 @@ class Repository(object):
 
         try:
             node = self._get_node(name)
-        except mercurial.error.RepoError:
-            # Note that mercurial normally throws RepoLookupError here when
-            # given an unknown revision name, but the Facebook gitrevset code
-            # just throws RepoError if given an unknown git revision.
-            #
-            # Assume any error means bad revision for now.
+        except mercurial.error.HintException:
+            # Unfortunately we can get a variety of different exceptions here
+            # on lookup error.  (RepoLookupError, RepoError, or even
+            # mercurial.error.Abort)
             raise NoSuchCommitError(name)
 
         return FakeCommit(node)

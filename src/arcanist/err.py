@@ -22,3 +22,7 @@ class NoSuchRevisionError(ConduitClientError):
 
     def __str__(self):
         return 'no such revision %s' % (self.rev,)
+
+
+class PatchFailedError(Exception):
+    pass

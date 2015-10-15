@@ -3,7 +3,7 @@
 # Copyright 2004-present Facebook. All Rights Reserved.
 #
 from . conduit import ArcanistConduitClient
-from .err import ConduitClientError
+from .err import ConduitClientError, PatchFailedError
 from . import revision
 from . import hg as arc_hg
 from . import git as arc_git
@@ -48,7 +48,7 @@ class _Applier(object):
         existing = self.arc_scm.find_diff_commits(self.rev)
 
         results = []
-        for diff in self.rev.diffs:
+        for diff_idx, diff in enumerate(self.rev.diffs):
             commit = existing.get(diff.id)
             if commit is not None:
                 logging.debug('Diff %s already applied as %s',
@@ -61,8 +61,22 @@ class _Applier(object):
             else:
                 prev_commit = None
             info = self._get_commit_info(diff, prev_commit)
-            commit = self.arc_scm.apply_diff(diff, self.rev, info)
-            results.append(commit)
+            try:
+                commit = self.arc_scm.apply_diff(diff, self.rev, info)
+                results.append(commit)
+            except PatchFailedError as ex:
+                # We always need to apply the current diff (the last one in the
+                # list) in order for review.
+                if diff_idx + 1 == len(self.rev.diffs):
+                    raise
+
+                # However, for previous diffs that aren't the current one, just
+                # continue trying to apply later diffs, rather than completely
+                # failing here.
+                logging.error('Failed to find a changeset where diff %s (%s) '
+                              'applies. Ignoring it, and continuing anyway',
+                              diff_idx + 1, diff.id)
+                continue
 
         return results
 
