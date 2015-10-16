@@ -11,8 +11,16 @@ import logging
 
 
 class ArcanistGit(object):
-    def __init__(self, repo):
+    def __init__(self, repo, arc_dir):
         self.repo = repo
+        self.arc_dir = arc_dir
+
+        # If the arcanist project root is a subdirectory of the repository
+        # root, we need to modify the paths in the phabricator diff data
+        # to include the prefix to the arcanist project.
+        #
+        # TODO: Actually implement this correctly.  At the moment I don't
+        # have any git repositories affected by this.
 
     def find_diff_commits(self, rev):
         chain = get_dc_commit_chain(self.repo, rev.id)

@@ -2,14 +2,16 @@
 #
 # Copyright 2004-present Facebook. All Rights Reserved.
 #
-from . conduit import ArcanistConduitClient
+from .conduit import ArcanistConduitClient
 from .err import ConduitClientError, PatchFailedError
+from .working_copy import WorkingCopy
 from . import revision
 from . import hg as arc_hg
 from . import git as arc_git
 
 from gitreview import hgapi
 
+import os
 import logging
 import pprint
 
@@ -35,13 +37,14 @@ class _Applier(object):
 
         self.repo = repo
         self.rev_id = rev_id
+        self.arc_dir = WorkingCopy(os.getcwd())
         if isinstance(repo, hgapi.Repository):
-            self.arc_scm = arc_hg.ArcanistHg(repo)
+            self.arc_scm = arc_hg.ArcanistHg(repo, self.arc_dir)
         else:
-            self.arc_scm = arc_git.ArcanistGit(repo)
+            self.arc_scm = arc_git.ArcanistGit(repo, self.arc_dir)
 
     def run(self):
-        self.conduit = ArcanistConduitClient(self.repo.workingDir)
+        self.conduit = ArcanistConduitClient(self.arc_dir)
         self.conduit.connect()
         self.rev = revision.get_revision(self.conduit, self.rev_id)
 

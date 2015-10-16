@@ -19,7 +19,7 @@ import mercurial.error
 import mercurial.util
 
 
-class BadPatchError(Exception):
+class BadPatchError(PatchFailedError):
     def __init__(self, node, paths):
         msg = ('cannot apply patch to %s: %s' % (node.hex(), paths))
         super(BadPatchError, self).__init__(msg)
@@ -32,8 +32,15 @@ class PathPatchError(Exception):
 
 
 class ArcanistHg(object):
-    def __init__(self, repo):
+    def __init__(self, repo, arc_dir):
         self.repo = repo
+        self.arc_dir = arc_dir
+
+        # If the arcanist project root is a subdirectory of the repository
+        # root, we need to modify the paths in the phabricator diff data
+        # to include the prefix to the arcanist project.
+        self.path_prefix = os.path.relpath(self.arc_dir.root,
+                                           self.repo.workingDir)
 
     def apply_diff(self, diff, rev, metadata):
         logging.debug('Applying diff %s', diff.id)
@@ -180,11 +187,24 @@ class ArcanistHg(object):
         commit_nums.sort(reverse=True)
         return [self.repo.repo[num] for num in commit_nums]
 
+    def _munge_change_path(self, change_path):
+        if change_path is None:
+            return None
+        path = change_path.encode('utf-8')
+        path = os.path.normpath(os.path.join(self.path_prefix, path))
+        return path
+
+    def _old_path(self, change):
+        return self._munge_change_path(change.old_path)
+
+    def _current_path(self, change):
+        return self._munge_change_path(change.current_path)
+
     def _old_paths(self, diff):
         for change in diff.changes:
             if change.old_path is None:
                 continue
-            yield change.old_path.encode('utf-8')
+            yield self._old_path(change)
 
     def _apply_diff(self, node, diff, rev, metadata):
         # Compute the new file contents for each path.
@@ -192,11 +212,9 @@ class ArcanistHg(object):
         new_data = {}
         bad_paths = {}
         for change in diff.changes:
-            if change.old_path is None:
-                old_path = None
-            else:
-                old_path = change.old_path.encode('utf-8')
-            new_path = change.current_path.encode('utf-8')
+            old_path = self._old_path(change)
+            new_path = self._current_path(change)
+
             try:
                 path_data = self._apply_diff_path(node, diff, change, old_path)
 
@@ -253,16 +271,28 @@ class ArcanistHg(object):
         return self._patch_data(old_data, change)
 
     def _patch_data(self, old, change):
+        # Phabricator will include this string at the end of the diff
+        # if the file was missing a terminating newline.
+        PHABRICATOR_NO_END_NEWLINE = r'\ No newline at end of file'
+
         old_lines = old.split('\n')
         new_lines = []
         for hunk in change.hunks:
             # Subtract 1 since the hunk offsets are 1-indexed instead of
             # 0-indexed.  (Line 1 is at old_lines[0])
             old_idx = hunk['oldOffset'] - 1
-            for line in hunk['corpus'].splitlines():
+            corpus_lines = hunk['corpus'].splitlines()
+            for line_idx, line in enumerate(corpus_lines):
                 line = line.encode('utf-8')
 
                 if old_idx >= len(old_lines):
+                    # Even though phabricator does return a
+                    # hunk['isMissingOldNewline'] property, this doesn't
+                    # seem to be set properly.  Instead it puts a bogus line
+                    # at the end of the diff output.
+                    if (line_idx + 1 == len(corpus_lines) and
+                            line == PHABRICATOR_NO_END_NEWLINE):
+                        break
                     raise PathPatchError('mismatch at line %d: old file '
                                          'ends at line %d' %
                                          (old_idx + 1, len(old_lines)))
@@ -307,7 +337,6 @@ class ArcanistHg(object):
             commit = self.repo.getCommit(parent_rev)
         except NoSuchCommitError:
             return None
-            print(commit)
 
         return commit
 
