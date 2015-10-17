@@ -300,15 +300,22 @@ class ArcanistHg(object):
                 if line.startswith(' '):
                     old_line = old_lines[old_idx]
                     if old_line != line[1:]:
-                        raise PathPatchError('mismatch at line %d: %r != %r' %
-                                             (old_idx + 1, old_line, line))
+                        # TODO: Support some patch fuzzing here, if there is a
+                        # slight mismatch in parts of the file that weren't
+                        # affected by the diff.
+                        raise PathPatchError('mismatch at line %d:\n'
+                                             '  expected: %r\n'
+                                             '  found:    %r' %
+                                             (old_idx + 1, old_line, line[1:]))
                     new_lines.append(old_line)
                     old_idx += 1
                 elif line.startswith('-'):
                     old_line = old_lines[old_idx]
                     if old_line != line[1:]:
-                        raise PathPatchError('mismatch at line %d: %r != %r' %
-                                             (old_idx + 1, old_line, line))
+                        raise PathPatchError('mismatch at line %d:\n'
+                                             '  expected: %r\n'
+                                             '  found:    %r' %
+                                             (old_idx + 1, old_line, line[1:]))
                     old_idx += 1
                 elif line.startswith('+'):
                     new_lines.append(line[1:])
