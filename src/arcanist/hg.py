@@ -19,6 +19,9 @@ import mercurial.error
 import mercurial.util
 
 
+SVN_REV_REGEX = re.compile(r'^svn\+ssh://.*@(?P<svn_rev>[0-9]+)$')
+
+
 class BadPatchError(PatchFailedError):
     def __init__(self, node, paths):
         msg = ('cannot apply patch to %s: %s' % (node.hex(), paths))
@@ -333,7 +336,14 @@ class ArcanistHg(object):
 
         # First check to see if we can find the parent commit
         if diff.all_params['sourceControlSystem'] == 'git':
-            parent_rev = 'g' + arc_base_rev
+            # For repositories using git-svn, phabricator unfortunately reports
+            # the sourceControlSystem as "git", but provides an SVN revision
+            # ID.
+            m = SVN_REV_REGEX.match(arc_base_rev)
+            if m:
+                parent_rev = 'r' + m.group('svn_rev')
+            else:
+                parent_rev = 'g' + arc_base_rev
         elif diff.all_params['sourceControlSystem'] == 'hg':
             parent_rev = arc_base_rev
         else:
