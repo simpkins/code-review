@@ -280,6 +280,7 @@ class ArcanistHg(object):
 
         old_lines = old.split('\n')
         new_lines = []
+        terminating_newline = True
         for hunk in change.hunks:
             # Subtract 1 since the hunk offsets are 1-indexed instead of
             # 0-indexed.  (Line 1 is at old_lines[0])
@@ -288,14 +289,17 @@ class ArcanistHg(object):
             for line_idx, line in enumerate(corpus_lines):
                 line = line.encode('utf-8')
 
+                # Even though phabricator does include
+                # hunk['isMissingOldNewline'] and
+                # hunk['isMissingNewNewline'] properties, these doesn't
+                # seem to be set properly.  Instead it puts a bogus line
+                # at the end of the diff output.
+                if (line_idx + 1 == len(corpus_lines) and
+                        line == PHABRICATOR_NO_END_NEWLINE):
+                    terminating_newline = False
+                    break
+
                 if old_idx >= len(old_lines):
-                    # Even though phabricator does return a
-                    # hunk['isMissingOldNewline'] property, this doesn't
-                    # seem to be set properly.  Instead it puts a bogus line
-                    # at the end of the diff output.
-                    if (line_idx + 1 == len(corpus_lines) and
-                            line == PHABRICATOR_NO_END_NEWLINE):
-                        break
                     raise PathPatchError('mismatch at line %d: old file '
                                          'ends at line %d' %
                                          (old_idx + 1, len(old_lines)))
@@ -326,7 +330,10 @@ class ArcanistHg(object):
                     raise Exception('unexpected line in diff hunk: %r' %
                                     (line,))
 
-        return b'\n'.join(new_lines) + b'\n'
+        result = b'\n'.join(new_lines)
+        if terminating_newline:
+            result += b'\n'
+        return result
 
     def find_base_commit(self, diff):
         arc_base_rev = diff.all_params['sourceControlBaseRevision']
