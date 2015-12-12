@@ -50,15 +50,23 @@ class _Applier(object):
 
         existing = self.arc_scm.find_diff_commits(self.rev)
 
+        # If a previous run skipped some early diffs, and applied later ones,
+        # only start processing after the diffs that were already applied.
+        # Don't bother trying to apply earlier diffs that we already
+        # tried and failed to apply before.
+        # If we have already app
         results = []
+        to_apply = []
         for diff_idx, diff in enumerate(self.rev.diffs):
             commit = existing.get(diff.id)
-            if commit is not None:
-                logging.debug('Diff %s already applied as %s',
-                              diff.id, commit)
+            if commit is None:
+                to_apply.append((diff_idx, diff))
+            else:
+                logging.debug('Diff %s already applied as %s', diff.id, commit)
                 results.append(commit)
-                continue
+                to_apply = []
 
+        for diff_idx, diff in to_apply:
             if results:
                 prev_commit = results[-1]
             else:

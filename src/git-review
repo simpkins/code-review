@@ -197,7 +197,7 @@ def setup_diffcamp_review_impl(scm, options, rev_id):
 
     # Raise an error if this revision has no diffs at all
     if not commits:
-        raise NoDiffsError()
+        raise NoDiffsError('No diffs applied from phabricator revision')
 
     # Use the last commit in the chain as the child
     child = str(commits[-1])
