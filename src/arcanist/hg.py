@@ -342,15 +342,15 @@ class ArcanistHg(object):
         arc_base_rev = arc_base_rev.encode('utf-8')
 
         # First check to see if we can find the parent commit
-        if diff.all_params['sourceControlSystem'] == 'git':
-            # For repositories using git-svn, phabricator unfortunately reports
-            # the sourceControlSystem as "git", but provides an SVN revision
-            # ID.
-            m = SVN_REV_REGEX.match(arc_base_rev)
-            if m:
-                parent_rev = 'r' + m.group('svn_rev')
-            else:
-                parent_rev = 'g' + arc_base_rev
+        #
+        # Look for a subversion style revision name first.  In git-svn and
+        # hg-svn repos, arc will set the sourceControlSystem to git/hg,
+        # but will still use a subversion-style revision name.
+        m = SVN_REV_REGEX.match(arc_base_rev)
+        if m:
+            parent_rev = 'r' + m.group('svn_rev')
+        elif diff.all_params['sourceControlSystem'] == 'git':
+            parent_rev = 'g' + arc_base_rev
         elif diff.all_params['sourceControlSystem'] == 'hg':
             parent_rev = arc_base_rev
         else:
