@@ -58,7 +58,8 @@ class ArcanistGit(object):
         if not changed_paths:
             # This diff may have only added new files.
             # In this case it should apply cleanly pretty much anywhere.
-            raise Exception('TODO: apply onto remote/master')
+            parent = self.repo.getCommit('origin/master')
+            return self._apply_diff(parent, diff, rev, metadata)
 
         origin = 'remotes/origin/master'
         for commit in log_commit_paths(self.repo, [origin], changed_paths):
