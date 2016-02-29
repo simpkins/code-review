@@ -101,11 +101,19 @@ class _Applier(object):
                           prev=parent_commit)
 
     def _get_commit_msg(self):
-        user_phids = [self.rev.author_phid] + self.rev.reviewer_phids
-        users = self.conduit.call_method('user.query', phids=user_phids)
-        user_map = dict((u['phid'], u) for u in users)
+        relevant_phids = [self.rev.author_phid] + self.rev.reviewer_phids
+        phid_map = self.conduit.call_method('phid.query', phids=relevant_phids)
 
-        reviewer_names = ', '.join(user_map[phid]['userName']
+        def get_phid_name(phid):
+            info = phid_map[phid]
+            phid_type = info['typeName']
+            if phid_type == 'Phabricator User':
+                return info['name']
+            elif info['typeName'] == 'Project':
+                return '#' + info['name']
+            raise Exception('unknown PHID type for %r: %r' % (phid, info))
+
+        reviewer_names = ', '.join(get_phid_name(phid)
                                    for phid in self.rev.reviewer_phids)
         template = '''\
 {title}
