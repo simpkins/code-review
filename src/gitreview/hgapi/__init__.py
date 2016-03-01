@@ -48,6 +48,11 @@ class Repository(object):
         self.workingDir = path
 
         ui = CustomUI()
+        # We have to read the local repository config before calling
+        # mercurial.extensions.loadall(), in order to figure out what
+        # extensions to load.  We need to have loaded all of the correct
+        # extensions before trying to create a repository object.
+        ui.readconfig(os.path.join(self.path, ".hg", "hgrc"), path)
         mercurial.extensions.loadall(ui)
         self.repo = mercurial.hg.repository(ui, self.path).unfiltered()
 
