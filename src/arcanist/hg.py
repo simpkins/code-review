@@ -105,6 +105,14 @@ class ArcanistHg(object):
         for node in candidates_fn(diff):
             yield node
 
+        # If all else fails, try master, @, and .
+        for rev in ('master', '@', '.'):
+            try:
+                node = self.repo.repo[rev]
+            except mercurial.error.RepoLookupError:
+                continue
+            yield node
+
     def _remotefilelog_candidate_commits(self, diff):
         '''
         Walk all ancestors of remote/master which touched any of the modified
