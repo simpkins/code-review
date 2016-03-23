@@ -227,7 +227,8 @@ class ArcanistHg(object):
             new_path = self._current_path(change)
 
             try:
-                path_data = self._apply_diff_path(node, diff, change, old_path)
+                path_data = self._apply_diff_path(node, diff, change,
+                                                  old_path, new_path)
 
                 # mercurial will choke with a pretty unhelpful exception
                 # backtrace if we give it unicode data.
@@ -268,17 +269,27 @@ class ArcanistHg(object):
         self._save_diff_mapping(diff, node)
         return FakeCommit(node)
 
-    def _apply_diff_path(self, node, diff, change, path):
+    def _apply_diff_path(self, node, diff, change,
+                         old_path, new_path):
         if change is None:
             return None
 
-        if path is None:
-            old_data = b''
+        if old_path is None:
+            # If the diff thinks this is a newly added file,
+            # confirm that it actually doesn't exist in this node.
+            try:
+                self.repo.getBlobContents(node, new_path)
+                raise PathPatchError('new file %r already exists in commit '
+                                     '%s' % (new_path, node.hex()))
+            except mercurial.error.ManifestLookupError:
+                pass
+            old_data = None
         else:
             try:
-                old_data = self.repo.getBlobContents(node, path)
+                old_data = self.repo.getBlobContents(node, old_path)
             except mercurial.error.ManifestLookupError:
-                raise BadPatchError(node, [path])
+                raise PathPatchError('%r does not exist in commit %s' %
+                                     (old_path, node.hex()))
         return self._patch_data(old_data, change)
 
     def _patch_data(self, old, change):
@@ -286,7 +297,10 @@ class ArcanistHg(object):
         # if the file was missing a terminating newline.
         PHABRICATOR_NO_END_NEWLINE = r'\ No newline at end of file'
 
-        old_lines = old.split('\n')
+        if old is not None:
+            old_lines = old.split('\n')
+        else:
+            old_lines = None
         new_lines = []
         terminating_newline = True
         for hunk in change.hunks:
@@ -307,36 +321,71 @@ class ArcanistHg(object):
                     terminating_newline = False
                     break
 
+                if line.startswith('+'):
+                    new_lines.append(line[1:])
+                    continue
+
+                if old is None:
+                    raise PathPatchError('bad patch data: specified '
+                                         'old file data for newly created '
+                                         'file')
+
                 if old_idx >= len(old_lines):
                     raise PathPatchError('mismatch at line %d: old file '
                                          'ends at line %d' %
                                          (old_idx + 1, len(old_lines)))
+                if old_idx < 0:
+                    # Phabricator will specify oldOffset as 0 when
+                    # the old file was empty.  It shoudnl't emit any lines
+                    # starting with ' ' or '-' in this case.
+                    raise PathPatchError('bad patch data: specified '
+                                         'contents at invalid line number '
+                                         '%d in old file' % (old_idx + 1))
 
                 if line.startswith(' '):
-                    old_line = old_lines[old_idx]
-                    if old_line != line[1:]:
-                        # TODO: Support some patch fuzzing here, if there is a
-                        # slight mismatch in parts of the file that weren't
-                        # affected by the diff.
-                        raise PathPatchError('mismatch at line %d:\n'
-                                             '  expected: %r\n'
-                                             '  found:    %r' %
-                                             (old_idx + 1, old_line, line[1:]))
-                    new_lines.append(old_line)
-                    old_idx += 1
+                    keep_line = True
                 elif line.startswith('-'):
-                    old_line = old_lines[old_idx]
-                    if old_line != line[1:]:
-                        raise PathPatchError('mismatch at line %d:\n'
-                                             '  expected: %r\n'
-                                             '  found:    %r' %
-                                             (old_idx + 1, old_line, line[1:]))
-                    old_idx += 1
-                elif line.startswith('+'):
-                    new_lines.append(line[1:])
+                    keep_line = False
                 else:
                     raise Exception('unexpected line in diff hunk: %r' %
                                     (line,))
+
+                old_line = old_lines[old_idx]
+                if old_line != line[1:]:
+                    # TODO: Support some patch fuzzing here, if there is a
+                    # slight mismatch in parts of the file that weren't
+                    # affected by the diff.
+                    raise PathPatchError('mismatch at line %d:\n'
+                                         '  expected: %r\n'
+                                         '  found:    %r' %
+                                         (old_idx + 1, old_line, line[1:]))
+                old_idx += 1
+                if keep_line:
+                    new_lines.append(old_line)
+
+        # We should have used all of the old data when we are done.
+        if old is None:
+            # old_idx should be -1 here.  (Since oldOffset will be specified as
+            # 0 in the diff hunk, and we shouldn't have ever incremented
+            # old_idx.)
+            if old_idx != -1:
+                raise PathPatchError('mismatch: old file was empty')
+        else:
+            # Make sure we used up all of the old file contents
+            if old_idx + 1 == len(old_lines):
+                # We used all but the last entry in old_lines.
+                # If the old file had a terminating newline, then
+                # old_lines[idx] will be empty, and this is fine.
+                # Otherwise there is still some unused data.
+                if old_lines[old_idx]:
+                    raise PathPatchError('patch stopped prior to the last '
+                                         'line of the old file (which was '
+                                         'missing a terminating newline)')
+            elif old_idx != len(old_lines):
+                # The patch did not use up all of the old data.
+                raise PathPatchError('patch ended at line %d of old file, '
+                                     'while file had %d lines' %
+                                     (old_idx + 1, len(old_lines)))
 
         result = b'\n'.join(new_lines)
         if terminating_newline:
