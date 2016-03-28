@@ -80,7 +80,9 @@ class ArcanistHg(object):
             try:
                 return self._apply_diff(node, diff, rev, metadata)
             except BadPatchError as ex:
-                cur_bad_paths = ex.paths
+                logging.debug('  Patch failed:')
+                for path, reason in ex.paths.items():
+                    logging.debug('    %s: %s', path, reason)
 
         raise PatchFailedError('unable to find a commit where diff %s '
                                'applies' % (diff.id,))
@@ -224,32 +226,25 @@ class ArcanistHg(object):
         new_data = {}
         bad_paths = {}
         for change in diff.changes:
-            old_path = self._old_path(change)
-            new_path = self._current_path(change)
-
             try:
-                path_data = self._apply_diff_path(node, diff, change,
-                                                  old_path, new_path,
-                                                  change.type)
-
-                # mercurial will choke with a pretty unhelpful exception
-                # backtrace if we give it unicode data.
-                assert not isinstance(path_data, unicode)
-
-                new_data[new_path] = path_data
-                if old_path is not None and old_path != new_path:
-                    new_data[old_path] = None
+                self._apply_diff_path(node, change, new_data)
             except PathPatchError as ex:
-                bad_paths[old_path] = ex
+                bad_path = change.current_path or change.old_path
+                bad_paths[self._munge_change_path(bad_path)] = ex
         if bad_paths:
             raise BadPatchError(node, bad_paths)
 
         parent_ctx = self.repo.repo[node]
         def getfilectx(repo, memctx, path):
-            data = new_data[path]
+            (data, old_path) = new_data[path]
             if data is None:
-                raise IOError('file was deleted')
-            return memfilectx(repo, path, data)
+                return None
+            else:
+                # mercurial will choke with a pretty unhelpful exception
+                # backtrace if we give it unicode data.
+                assert not isinstance(data, unicode), \
+                        'BUG: generated unicode data for path %r' % path
+            return memfilectx(repo, path, data, copied=old_path)
 
         fileset = set(new_data)
 
@@ -271,33 +266,87 @@ class ArcanistHg(object):
         self._save_diff_mapping(diff, node)
         return FakeCommit(node)
 
-    def _apply_diff_path(self, node, diff, change,
-                         old_path, new_path, change_type):
-        if change is None:
-            return None
-
-        if change_type in (ChangeSet.TYPE_ADD, ChangeSet.TYPE_MOVE_HERE):
-            # If the diff thinks this is a newly added file,
-            # confirm that it actually doesn't exist in this node.
-            try:
-                self.repo.getBlobContents(node, new_path)
-                raise PathPatchError('new file %r already exists in commit '
-                                     '%s' % (new_path, node.hex()))
-            except mercurial.error.ManifestLookupError:
-                pass
-            old_data = None
+    def _apply_diff_path(self, node, change, new_data):
+        if change.type == ChangeSet.TYPE_ADD:
+            new_path = self._current_path(change)
+            # Check that the file doesn't exist
+            self._check_file_not_present(node, new_path)
+            new_data[new_path] = (self._patch_data(None, change), None)
+        elif change.type == ChangeSet.TYPE_CHANGE:
+            new_path = self._current_path(change)
+            old_path = self._old_path(change)
+            assert new_path == old_path, '%r != %r' % (new_path, old_path)
+            old_data = self._get_path_data(node, old_path)
+            new_data[new_path] = (self._patch_data(old_data, change), None)
+        elif change.type == ChangeSet.TYPE_DELETE:
+            new_path = self._current_path(change)
+            self._check_file_present(node, new_path)
+            new_data[new_path] = (None, None)
+        elif change.type == ChangeSet.TYPE_MOVE_AWAY:
+            new_path = self._current_path(change)
+            assert change.old_path is None, \
+                    'non-empty old path %r' % (change.old_path,)
+            new_data[new_path] = (None, None)
+        elif change.type == ChangeSet.TYPE_COPY_AWAY:
+            # Nothing to do for this case
+            pass
+        elif change.type in (ChangeSet.TYPE_MOVE_HERE,
+                             ChangeSet.TYPE_COPY_HERE):
+            new_path = self._current_path(change)
+            old_path = self._old_path(change)
+            assert new_path != old_path, '%r != %r' % (new_path, old_path)
+            # Check that the destination doesn't exist
+            self._check_file_not_present(node, new_path)
+            old_data = self._get_path_data(node, old_path)
+            # Set the contents for the new file
+            new_data[new_path] = (self._patch_data(old_data, change), old_path)
+            # Note: we don't delete the old file when processing this
+            # ChangeSet.  For moves, there will be a corresponding
+            # TYPE_MOVE_AWAY change, and we will delete the old path there.
+        elif change.type == ChangeSet.TYPE_MULTICOPY:
+            raise Exception('unhandled TYPE_MULTICOPY change for path %r' %
+                            self._current_path(change))
+        elif change.type == ChangeSet.TYPE_MESSAGE:
+            raise Exception('unhandled TYPE_MESSAGE change for path %r' %
+                            self._current_path(change))
+        elif change.type == ChangeSet.TYPE_CHILD:
+            raise Exception('unhandled TYPE_CHILD change for path %r' %
+                            self._current_path(change))
         else:
-            try:
-                old_data = self.repo.getBlobContents(node, old_path)
-            except mercurial.error.ManifestLookupError:
-                raise PathPatchError('%r does not exist in commit %s' %
-                                     (old_path, node.hex()))
-        return self._patch_data(old_data, change)
+            raise Exception('unhandled %r change for path %r' %
+                            (change.type, self._current_path(change)))
+
+    def _get_path_data(self, node, path):
+        try:
+            return self.repo.getBlobContents(node, path)
+        except mercurial.error.ManifestLookupError:
+            raise PathPatchError('file %r does not exist in commit %s' %
+                                 (path, node.hex()))
+
+    def _check_file_present(self, node, path):
+        try:
+            node[path]
+        except mercurial.error.ManifestLookupError:
+            raise PathPatchError('file %r does not exist in commit %s' %
+                                 (path, node.hex()))
+
+    def _check_file_not_present(self, node, path):
+        try:
+            node[path]
+            raise PathPatchError('file %r already exists in commit %s' %
+                                 (path, node.hex()))
+        except mercurial.error.ManifestLookupError:
+            pass
 
     def _patch_data(self, old, change):
         # Phabricator will include this string at the end of the diff
         # if the file was missing a terminating newline.
         PHABRICATOR_NO_END_NEWLINE = r'\ No newline at end of file'
+
+        if not change.hunks:
+            # This can happen in cases of files that were moved
+            # or copied but had no changes to the file contents.
+            return old
 
         if old is not None:
             old_lines = old.split('\n')
