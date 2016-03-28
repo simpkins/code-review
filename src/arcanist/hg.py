@@ -9,6 +9,7 @@ import os
 import re
 
 from .err import PatchFailedError
+from .revision import ChangeSet
 
 from gitreview.git.exceptions import NoSuchCommitError
 from gitreview.hgapi import FakeCommit
@@ -228,7 +229,8 @@ class ArcanistHg(object):
 
             try:
                 path_data = self._apply_diff_path(node, diff, change,
-                                                  old_path, new_path)
+                                                  old_path, new_path,
+                                                  change.type)
 
                 # mercurial will choke with a pretty unhelpful exception
                 # backtrace if we give it unicode data.
@@ -270,11 +272,11 @@ class ArcanistHg(object):
         return FakeCommit(node)
 
     def _apply_diff_path(self, node, diff, change,
-                         old_path, new_path):
+                         old_path, new_path, change_type):
         if change is None:
             return None
 
-        if old_path is None:
+        if change_type in (ChangeSet.TYPE_ADD, ChangeSet.TYPE_MOVE_HERE):
             # If the diff thinks this is a newly added file,
             # confirm that it actually doesn't exist in this node.
             try:
@@ -303,6 +305,7 @@ class ArcanistHg(object):
             old_lines = None
         new_lines = []
         terminating_newline = True
+        old_idx = -1
         for hunk in change.hunks:
             # Subtract 1 since the hunk offsets are 1-indexed instead of
             # 0-indexed.  (Line 1 is at old_lines[0])

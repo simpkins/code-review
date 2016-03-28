@@ -19,6 +19,27 @@ def _populate_json_object(object, params, mapping):
 
 
 class ChangeSet(object):
+    # Constants for the ChangeSet type field
+    TYPE_ADD        = 1
+    TYPE_CHANGE     = 2
+    TYPE_DELETE     = 3
+    TYPE_MOVE_AWAY  = 4
+    TYPE_COPY_AWAY  = 5
+    TYPE_MOVE_HERE  = 6
+    TYPE_COPY_HERE  = 7
+    TYPE_MULTICOPY  = 8
+    TYPE_MESSAGE    = 9
+    TYPE_CHILD      = 10
+
+    # Constants for the ChangeSet fileType field
+    FILE_TEXT       = 1
+    FILE_IMAGE      = 2
+    FILE_BINARY     = 3
+    FILE_DIRECTORY  = 4
+    FILE_SYMLINK    = 5
+    FILE_DELETED    = 6
+    FILE_NORMAL     = 7
+
     def __init__(self, diff, params):
         self.diff = diff
         self.all_params = params
