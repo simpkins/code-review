@@ -68,6 +68,8 @@ class Diff(object):
             'parent': None,
             'sourceControlBaseRevision': 'src_control_base_rev',
             'sourceControlPath': 'src_control_path',
+            'authorEmail': 'author_email',
+            'authorName': 'author_name',
         }
         _populate_json_object(self, params, mapping)
 

@@ -4,6 +4,7 @@
 #
 import errno
 import heapq
+import json
 import logging
 import os
 import re
@@ -39,6 +40,7 @@ class ArcanistHg(object):
     def __init__(self, repo, arc_dir):
         self.repo = repo
         self.arc_dir = arc_dir
+        self.debug_patches = False
 
         # If the arcanist project root is a subdirectory of the repository
         # root, we need to modify the paths in the phabricator diff data
@@ -66,6 +68,10 @@ class ArcanistHg(object):
         # We didn't find the base commit specified by phabricator.
         # Try to find another commit that works instead.
         #
+        # The phabricator revision does have a 'local:commits' field, but it is
+        # unfortunately useless.  Rather than listing all local commits since
+        # the last public commit, it just lists the one single commit since ".^"
+        #
         # Try each commit that modified any of the files in question.
         #
         # TODO: We could be smarter here by keeping track of how many files the
@@ -75,8 +81,9 @@ class ArcanistHg(object):
         #
         # This would also let us abort if the patch attempts start getting
         # worse rather than better.
-        for node in self._candidate_commits(diff, metadata):
-            logging.debug('trying to apply diff %s to %s', diff.id, node.hex())
+        for node in self._candidate_commits(rev, diff, metadata):
+            node_info = self._fmt_commit_info(node)
+            logging.debug('trying to apply diff %s to %s', diff.id, node_info)
             try:
                 return self._apply_diff(node, diff, rev, metadata)
             except BadPatchError as ex:
@@ -87,11 +94,30 @@ class ArcanistHg(object):
         raise PatchFailedError('unable to find a commit where diff %s '
                                'applies' % (diff.id,))
 
-    def _candidate_commits(self, diff, metadata):
+    def _fmt_commit_info(self, node):
+        short_hex = node.hex()[:7]
+        summary = node.description().split('\n', 1)[0][:30]
+        return '%s %s: %s' % (short_hex, node.user(), summary)
+
+    def _candidate_commits(self, rev, diff, metadata):
         # If we have a previously applied diff, try it's parent.
         # This is likely to be a good guess for where to apply the diff.
         if metadata.prev_commit is not None:
             yield metadata.prev_commit.node.p1()
+
+        # If you want to explicitly try specific commits,
+        # you can list them here.
+        explicit_results = []
+        if explicit_results:
+            for node in self.repo.repo.set(explicit_results):
+                yield node
+            return
+
+        if self.debug_patches:
+            print('---- Rev ----')
+            print(json.dumps(rev.all_params, indent=2))
+            print('---- Diff ----')
+            print(json.dumps(diff.all_params, indent=2))
 
         # If we aren't using remotefilelog, then we can do a fast walk
         # of the filelogs.  If the remotefilelog extension is being used,
@@ -130,13 +156,26 @@ class ArcanistHg(object):
         # We exclude other public heads, since the repos I work on generally
         # have many other public tags and heads that I don't care about, and
         # are expensive to search through.
-        relevant_heads = 'remote/master + (head() - hidden() - public())'
+        relevant_heads = (
+            'remote/master '
+            '+ ((head() + parents(hidden())) - hidden()) '
+            '- public()'
+        )
 
-        seen = set()
-        rev_heap = []
+        commits_to_check = set(self.repo.repo.set('remote/master'))
+
+        # The following operations are unfortunately quite slow with a
+        # lot of heads.  To speed things up, only look at heads that
+        # were created by the same author as the diff we are applying.
+        heads = self.repo.repo.set(relevant_heads)
+        for c in heads:
+            if diff.author_email in c.user():
+                commits_to_check.add(c)
 
         # For each head
-        for commit in self.repo.repo.set(relevant_heads):
+        seen = set()
+        rev_heap = []
+        for commit in commits_to_check:
             # For each file changed by this diff, get the filectx() in
             # this commit.
             for path in self._old_paths(diff):
