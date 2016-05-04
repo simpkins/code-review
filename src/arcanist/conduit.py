@@ -36,7 +36,19 @@ class ArcanistConduitClient(ConduitClient):
         if isinstance(working_copy, basestring):
             working_copy = WorkingCopy(working_copy)
 
-        uri = working_copy.config.conduit_uri
+        config = working_copy.config
+        uri = config.get('conduit_uri')
+        if uri is None:
+            phab_uri = config.get('phabricator.uri')
+            if phab_uri is None:
+                msg = ('{} does not contain a conduit_uri or '
+                       'phabricator.uri setting').format(config.path)
+                raise KeyError(msg)
+            if phab_uri.endswith('/'):
+                uri = phab_uri + 'api/'
+            else:
+                uri = phab_uri + '/api/'
+
         self.host_config = user_config.hosts[uri]
         ConduitClient.__init__(self, uri)
 
