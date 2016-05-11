@@ -318,9 +318,9 @@ class ArcanistHg(object):
             old_data = self._get_path_data(node, old_path)
             new_data[new_path] = (self._patch_data(old_data, change), None)
         elif change.type == ChangeSet.TYPE_DELETE:
-            new_path = self._current_path(change)
-            self._check_file_present(node, new_path)
-            new_data[new_path] = (None, None)
+            old_path = self._current_path(change)
+            self._check_file_present(node, old_path)
+            new_data[old_path] = (None, None)
         elif change.type == ChangeSet.TYPE_MOVE_AWAY:
             new_path = self._current_path(change)
             assert change.old_path is None, \
@@ -343,8 +343,10 @@ class ArcanistHg(object):
             # ChangeSet.  For moves, there will be a corresponding
             # TYPE_MOVE_AWAY change, and we will delete the old path there.
         elif change.type == ChangeSet.TYPE_MULTICOPY:
-            raise Exception('unhandled TYPE_MULTICOPY change for path %r' %
-                            self._current_path(change))
+            # This file was deleted after being copied to multiple other places
+            old_path = self._current_path(change)
+            self._check_file_present(node, old_path)
+            new_data[old_path] = (None, None)
         elif change.type == ChangeSet.TYPE_MESSAGE:
             raise Exception('unhandled TYPE_MESSAGE change for path %r' %
                             self._current_path(change))
