@@ -451,7 +451,7 @@ class ArcanistHg(object):
                     raise PathPatchError('mismatch at line %d:\n'
                                          '  expected: %r\n'
                                          '  found:    %r' %
-                                         (old_idx + 1, old_line, line[1:]))
+                                         (old_idx + 1, line[1:], old_line))
                 old_idx += 1
                 if keep_line:
                     new_lines.append(old_line)
