@@ -60,6 +60,18 @@ class Repository(object):
         # Mercurial doesn't have bare repositories
         return True
 
+    def hg_path(self, path, *extra):
+        '''
+        Get the path to a file in the .hg directory.
+
+        If this is a shared working copy, this returns the path in the main .hg
+        directory rather than the shim .hg directory associated with this
+        working copy.
+        '''
+        if self.repo.shared():
+            return os.path.join(self.repo.sharedpath, path, *extra)
+        return self.repo.join(path, *extra)
+
     def getDiff(self, parent, child, paths=None):
         entries = DiffFileList(parent, child)
 

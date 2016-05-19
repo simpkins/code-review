@@ -515,7 +515,7 @@ class ArcanistHg(object):
         return commit
 
     def _get_diff_mapping_path(self):
-        return os.path.join(self.repo.workingDir, '.hg', 'phabricator_diffs')
+        return self.repo.hg_path('phabricator_diffs')
 
     def _load_diff_mappings(self):
         results = {}
