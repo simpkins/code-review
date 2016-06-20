@@ -87,15 +87,51 @@ class Repository(object):
                                 listsubrepos=False)
         modified, added, removed, deleted, unknown, ignored, clean = stat
 
+        old_paths = set()
+
+        def process_entry(path, old_path):
+            if old_path is None:
+                status = Status('A')
+                old_mode = '0000'
+                old_sha1 = '0000'  # dummy value
+            else:
+                status = Status('M')
+                old_mode = '0644'  # TODO: get the correct mode data
+                old_sha1 = '1234'  # dummy value
+
+            if child_node is not None:
+                rename_info = child_node[path].renamed()
+                new_sha1 = '5678'  # TODO: get the filectx ID
+            else:
+                # TODO: get rename info for working directory changes
+                # TODO: use a workingctx() object
+                rename_info = None
+                new_sha1 = '5678'  # TODO
+
+            if rename_info:
+                status = Status('R')
+                old_path = rename_info[0]
+                old_paths.add(old_path)
+                old_mode = '0644'  # TODO: get the correct mode data
+                old_sha1 = '1234'  # dummy value
+
+            new_mode = '0644'  # TODO: get the correct mode value
+
+            entry = DiffEntry(old_mode, new_mode, old_sha1, new_sha1, status,
+                              old_path, path)
+            entries.add(entry)
+
         for path in modified:
-            entry = DiffEntry('0644', '0644', '1234', '5678', Status('M'),
-                              path, path)
-            entries.add(entry)
+            process_entry(path, path)
+
         for path in added:
-            entry = DiffEntry('0000', '0644', '0000', '5678', Status('A'),
-                              None, path)
-            entries.add(entry)
+            process_entry(path, None)
+
         for path in removed:
+            if path in old_paths:
+                # This path was moved away from, and we already added
+                # a DiffEntry for it above.
+                continue
             entry = DiffEntry('0644', '0000', '1234', '0000', Status('D'),
                               path, None)
             entries.add(entry)

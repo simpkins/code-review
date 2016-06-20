@@ -34,18 +34,21 @@ class Status(object):
     # internally, git also defines 'X' for unknown
 
     def __init__(self, str_value):
+        self.similarityIndex = None
         if str_value == 'A':
             self.status = self.ADDED
         elif str_value.startswith('C'):
             self.status = self.COPIED
-            self.similarityIndex = self.__parseSimIndex(str_value[1:])
+            if len(str_value) > 1:
+                self.similarityIndex = self.__parseSimIndex(str_value[1:])
         elif str_value == 'D':
             self.status = self.DELETED
         elif str_value == 'M':
             self.status = self.MODIFIED
         elif str_value.startswith('R'):
             self.status = self.RENAMED
-            self.similarityIndex = self.__parseSimIndex(str_value[1:])
+            if len(str_value) > 1:
+                self.similarityIndex = self.__parseSimIndex(str_value[1:])
         elif str_value == 'T':
             self.status = self.TYPE_CHANGED
         elif str_value == 'U':
@@ -87,7 +90,7 @@ class Status(object):
         raise ValueError(self.status)
 
     def __str__(self):
-        if self.status == self.RENAMED or self.status == self.COPIED:
+        if self.similarityIndex is not None:
             return '%s%03d' % (self.status, self.similarityIndex)
         return self.status
 
