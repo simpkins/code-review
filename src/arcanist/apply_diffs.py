@@ -4,7 +4,7 @@
 #
 from .conduit import ArcanistConduitClient
 from .err import ConduitClientError, PatchFailedError
-from .working_copy import WorkingCopy
+from .working_copy import WorkingCopy, NoArcConfigError
 from . import revision
 from . import hg as arc_hg
 from . import git as arc_git
@@ -39,9 +39,9 @@ class _Applier(object):
         self.rev_id = rev_id
         self.arc_dir = WorkingCopy(os.getcwd())
         if isinstance(repo, hgapi.Repository):
-            self.arc_scm = arc_hg.ArcanistHg(repo, self.arc_dir)
+            self.arc_scm = arc_hg.ArcanistHg(repo)
         else:
-            self.arc_scm = arc_git.ArcanistGit(repo, self.arc_dir)
+            self.arc_scm = arc_git.ArcanistGit(repo)
 
     def run(self):
         self.conduit = ArcanistConduitClient(self.arc_dir)
@@ -72,6 +72,11 @@ class _Applier(object):
             else:
                 prev_commit = None
             info = self._get_commit_info(diff, prev_commit)
+
+            # Figure out what directory these diff changes apply to.
+            # Store that as a property of the diff object.
+            diff.repo_path_prefix = self._get_path_prefix(diff)
+
             try:
                 commit = self.arc_scm.apply_diff(diff, self.rev, info)
                 results.append(commit)
@@ -133,6 +138,34 @@ Differential Revision: {uri}
                                test_plan=self.rev.test_plan,
                                reviewers=reviewer_names,
                                uri=self.rev.uri)
+
+    def _get_path_prefix(self, diff):
+        # Figure out if the diff paths are relative to a particular directory
+        # in the repository.  Stash that as a property of the diff object
+        # so we can find it later.
+        #
+        # By default, assume the diff applies to the directory where we found
+        # the .arcconfig file.
+        default_prefix = os.path.relpath(self.arc_dir.root,
+                                         self.repo.workingDir)
+        diff_project = diff.all_params.get('projectName')
+        if not diff_project:
+            return default_prefix
+
+        if diff_project == self.arc_dir.config.project_id:
+            return default_prefix
+
+        # Check to see if there is an arcconfig file at the root of the
+        # repository.
+        try:
+            root_arc = WorkingCopy(self.repo.workingDir)
+            if diff_project == root_arc.config.project_id:
+                return os.path.relpath(root_arc.root, self.repo.workingDir)
+        except NoArcConfigError:
+            pass
+
+        raise Exception('cannot apply diff for unknown arcanist project %s' %
+                        diff_project)
 
 
 def _dump_changes(diff):

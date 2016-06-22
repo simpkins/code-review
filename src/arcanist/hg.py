@@ -37,23 +37,12 @@ class PathPatchError(Exception):
 
 
 class ArcanistHg(object):
-    def __init__(self, repo, arc_dir):
+    def __init__(self, repo):
         self.repo = repo
-        self.arc_dir = arc_dir
         self.debug_patches = False
-
-        # If the arcanist project root is a subdirectory of the repository
-        # root, we need to modify the paths in the phabricator diff data
-        # to include the prefix to the arcanist project.
-        self.path_prefix = os.path.relpath(self.arc_dir.root,
-                                           self.repo.workingDir)
 
     def apply_diff(self, diff, rev, metadata):
         logging.debug('Applying diff %s', diff.id)
-
-        # TODO: Handle fbcode<-->fbsource path name translations.
-        # The diff's project name can be found in
-        # diff.all_params['projectName'].
 
         # Phabricator lists the base revision that this diff applied to.
         # Check to see if this is a known revision in our repository.
@@ -240,18 +229,19 @@ class ArcanistHg(object):
         commit_nums.sort(reverse=True)
         return [self.repo.repo[num] for num in commit_nums]
 
-    def _munge_change_path(self, change_path):
+    def _munge_change_path(self, change, change_path):
         if change_path is None:
             return None
         path = change_path.encode('utf-8')
-        path = os.path.normpath(os.path.join(self.path_prefix, path))
+        path_prefix = change.diff.repo_path_prefix
+        path = os.path.normpath(os.path.join(path_prefix, path))
         return path
 
     def _old_path(self, change):
-        return self._munge_change_path(change.old_path)
+        return self._munge_change_path(change, change.old_path)
 
     def _current_path(self, change):
-        return self._munge_change_path(change.current_path)
+        return self._munge_change_path(change, change.current_path)
 
     def _old_paths(self, diff):
         for change in diff.changes:
@@ -269,7 +259,7 @@ class ArcanistHg(object):
                 self._apply_diff_path(node, change, new_data)
             except PathPatchError as ex:
                 bad_path = change.current_path or change.old_path
-                bad_paths[self._munge_change_path(bad_path)] = ex
+                bad_paths[self._munge_change_path(change, bad_path)] = ex
         if bad_paths:
             raise BadPatchError(node, bad_paths)
 

@@ -11,9 +11,8 @@ import logging
 
 
 class ArcanistGit(object):
-    def __init__(self, repo, arc_dir):
+    def __init__(self, repo):
         self.repo = repo
-        self.arc_dir = arc_dir
 
         # If the arcanist project root is a subdirectory of the repository
         # root, we need to modify the paths in the phabricator diff data
