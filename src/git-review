@@ -50,8 +50,6 @@ import arcanist.apply_diffs
 from arcanist.gitapply import RevisionApplier as ArcRevisionApplier
 from arcanist import NoSuchRevisionError
 
-import gitreview.diffcamp.dcgit as dcgit
-
 RETCODE_SUCCESS = 0
 RETCODE_ARGUMENTS_ERROR = 1
 RETCODE_DIFFCAMP_ERROR = 2
