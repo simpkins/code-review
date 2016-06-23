@@ -47,12 +47,11 @@ import gitreview.review as review
 import gitreview.scm.util
 
 import arcanist.apply_diffs
-from arcanist.gitapply import RevisionApplier as ArcRevisionApplier
 from arcanist import NoSuchRevisionError
 
 RETCODE_SUCCESS = 0
 RETCODE_ARGUMENTS_ERROR = 1
-RETCODE_DIFFCAMP_ERROR = 2
+RETCODE_PHABRICATOR_ERROR = 2
 
 f_progname = os.path.basename(sys.argv[0])
 
@@ -175,7 +174,7 @@ def _resolve_commits_hg(ap, args):
         args.parent_commit = hgapi.COMMIT_HEAD
 
 
-def setup_diffcamp_review(scm, options):
+def setup_phabricator_review(scm, options):
     rev_id_str = options.differential
     try:
         # Accept D123456 or just 123456
@@ -188,10 +187,10 @@ def setup_diffcamp_review(scm, options):
 
     print 'Checking for diffs from revision %s' % (rev_id,)
 
-    return setup_diffcamp_review_impl(scm, options, rev_id)
+    return setup_phabricator_review_impl(scm, options, rev_id)
 
 
-def setup_diffcamp_review_impl(scm, options, rev_id):
+def setup_phabricator_review_impl(scm, options, rev_id):
     commits = arcanist.apply_diffs.apply_diffs(scm.repo, rev_id)
 
     # Raise an error if this revision has no diffs at all
@@ -250,11 +249,11 @@ def main(argv):
 
     if args.differential:
         try:
-            rev = setup_diffcamp_review(scm, args)
+            rev = setup_phabricator_review(scm, args)
         except (NoSuchRevisionError, git.PatchFailedError,
                 NoDiffsError), ex:
             sys.stderr.write('%s: error: %s\n' % (f_progname, ex))
-            return RETCODE_DIFFCAMP_ERROR
+            return RETCODE_PHABRICATOR_ERROR
     else:
         diff = scm.repo.getDiff(args.parent_commit, args.child_commit)
         rev = review.Review(scm, diff)

@@ -22,9 +22,12 @@ setup(name='git-review',
       description='Utilities for reviewing changes in git repositories',
       package_dir = { '' : 'src' },
       packages=[
+          'arcanist',
           'gitreview',
-          'gitreview.git',
           'gitreview.cli',
+          'gitreview.git',
+          'gitreview.hgapi',
           'gitreview.review',
+          'gitreview.scm',
       ],
       scripts=['src/git-review'])

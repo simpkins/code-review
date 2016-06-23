@@ -5,26 +5,22 @@
 import gitreview.git as git
 
 
-class DiffcampGitError(Exception):
-    pass
-
-
-class NotADiffcampCommitError(DiffcampGitError):
+class NotADifferentialCommit(Exception):
     def __init__(self, commit, reason):
-        DiffcampGitError.__init__(self)
+        Exception.__init__(self)
         self.commit = commit
         self.reason = reason
 
     def __str__(self):
-        return ('%.7s is not a DiffCamp commit: %s' %
+        return ('%.7s is not a phabricator commit: %s' %
                 (self.commit.sha1, self.reason))
 
 
-class DiffcampCommit(object):
+class DifferentialCommit(object):
     def __init__(self, commit):
         self.commit = commit # a git.commit.Commit object
 
-        # appliedOnto stores the SHA1 value of the commit that the diffcamp
+        # appliedOnto stores the SHA1 value of the commit that the phabricator
         # diff was applied to.
         #
         # Note that this is often different from the commit's parent(s).
@@ -38,24 +34,24 @@ class DiffcampCommit(object):
         try:
             self.diffId = int(diff_id_str)
         except ValueError:
-            raise NotADiffcampCommitError(commit, 'invalid diff ID %r' %
-                                          (diff_id_str,))
+            raise NotADifferentialCommit(commit, 'invalid diff ID %r' %
+                                         (diff_id_str,))
 
         rev_id_str = self.__findField('Differential Revision')
         try:
             self.revisionId = int(rev_id_str)
         except ValueError:
-            raise NotADiffcampCommitError(commit, 'invalid revision ID %r' %
-                                          (rev_id_str,))
+            raise NotADifferentialCommit(commit, 'invalid revision ID %r' %
+                                         (rev_id_str,))
 
     def __findField(self, field_name):
-        # The diffcamp fields are at the end of the commit message.
+        # The phabricator fields are at the end of the commit message.
         # Search backwards to find the correct version, just in case something
         # else in the commit message happens to match this.
         field_prefix = '\n' + field_name + ': '
         idx = self.commit.comment.rfind(field_prefix)
         if idx < 0:
-            raise NotADiffcampCommitError(self.commit,
+            raise NotADifferentialCommit(self.commit,
                                           'no %s field' % (field_name,))
 
         # The field value is everything up to the next newline:
@@ -65,21 +61,21 @@ class DiffcampCommit(object):
         return value
 
 
-def get_dc_commit_chain(repo, rev_id, ref_name=None):
+def get_phabricator_commit_chain(repo, rev_id, ref_name=None):
     """
     Get the chain of commits representing the diffs from the specified
-    differential revision.
+    phabricator differential revision.
 
     Returns a list of commits for this revision, in order from earliest to
     latest.  (I.e. a commit's parent commit always appears before it in the
     list.)
     """
     if ref_name is None:
-        # The ref "refs/diffcamp/<rev_id>" points to the most recent
+        # The ref "refs/phabricator/<rev_id>" points to the most recent
         # commit for this revision.
         #
         # Use this unless another name was explicitly specified.
-        ref_name = 'refs/diffcamp/%s' % (rev_id,)
+        ref_name = 'refs/phabricator/%s' % (rev_id,)
 
     try:
         commit = repo.getCommit(ref_name)
@@ -89,15 +85,15 @@ def get_dc_commit_chain(repo, rev_id, ref_name=None):
 
     # Attempt to parse the differential information from the commit message
     try:
-        dc_commit = DiffcampCommit(commit)
-    except NotADiffcampCommitError, ex:
-        # Hmm.  The head of a refs/diffcamp/<NNN> ref really should
-        # be a Diffcamp commit.  Just re-raise the NotADiffcampCommitError
+        dc_commit = DifferentialCommit(commit)
+    except NotADifferentialCommit, ex:
+        # Hmm.  The head of a refs/phabricator/<NNN> ref really should
+        # be a differential commit.  Just re-raise the NotADifferentialCommit
         # as-is.
         raise
 
     # Walk backwards through the commit history until we find a commit that is
-    # not from this diffcamp revision.
+    # not from this differential revision.
     commit_chain = [dc_commit]
     while True:
         num_parents = len(commit.parents)
@@ -113,9 +109,9 @@ def get_dc_commit_chain(repo, rev_id, ref_name=None):
 
         # Check to see if hte parent looks like a differential commit.
         try:
-            dc_commit = DiffcampCommit(commit)
-        except NotADiffcampCommitError:
-            # Not a diffcamp commit.  We reached the end of the chain
+            dc_commit = DifferentialCommit(commit)
+        except NotADifferentialCommit:
+            # Not a differential commit.  We reached the end of the chain
             break
 
         # Check to see if this is from the same revision

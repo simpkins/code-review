@@ -3,7 +3,7 @@
 # Copyright 2004-present Facebook. All Rights Reserved.
 #
 import arcanist.gitapply
-from gitreview.diffcamp.dcgit import get_dc_commit_chain
+from .git_differential import get_phabricator_commit_chain
 from gitreview.git.exceptions import NoSuchCommitError
 from gitreview.git.commit import log_commit_paths
 
@@ -22,7 +22,7 @@ class ArcanistGit(object):
         # have any git repositories affected by this.
 
     def find_diff_commits(self, rev):
-        chain = get_dc_commit_chain(self.repo, rev.id)
+        chain = get_phabricator_commit_chain(self.repo, rev.id)
 
         results = {}
         for dc_commit in chain:
