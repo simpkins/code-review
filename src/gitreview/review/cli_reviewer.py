@@ -586,7 +586,9 @@ class CliReviewer(cli.CLI):
         # Check the following environment variables
         # to see which program we should use to view files.
         viewer_str = None
-        if os.environ.has_key('GIT_REVIEW_VIEW'):
+        if os.environ.has_key('CODE_REVIEW_VIEW'):
+            viewer_str = os.environ['CODE_REVIEW_VIEW']
+        elif os.environ.has_key('GIT_REVIEW_VIEW'):
             viewer_str = os.environ['GIT_REVIEW_VIEW']
         elif os.environ.has_key('GIT_EDITOR'):
             viewer_str = os.environ['GIT_EDITOR']
@@ -603,7 +605,11 @@ class CliReviewer(cli.CLI):
 
         # Check the following environment variables
         # to see which program we should use to view files.
-        if os.environ.has_key('GIT_REVIEW_DIFF'):
+        if os.environ.has_key('CODE_REVIEW_DIFF'):
+            diff_str = os.environ['CODE_REVIEW_DIFF']
+            tokenizer = cli.tokenize.SimpleTokenizer(diff_str)
+            self.diff_command = tokenizer.get_tokens()
+        elif os.environ.has_key('GIT_REVIEW_DIFF'):
             diff_str = os.environ['GIT_REVIEW_DIFF']
             tokenizer = cli.tokenize.SimpleTokenizer(diff_str)
             self.diff_command = tokenizer.get_tokens()
@@ -616,7 +622,7 @@ class CliReviewer(cli.CLI):
             #
             # We could default to plain old 'diff' if people don't like
             # vimdiff.  However, I figure most people will configure their
-            # preferred diff program with GIT_REVIEW_DIFF.
+            # preferred diff program with CODE_REVIEW_DIFF.
             self.diff_command = ['vimdiff', '-R']
 
     def invoke_command(self, cmd_name, args, line):

@@ -16,10 +16,10 @@
 #
 from distutils.core import setup
 
-setup(name='git-review',
+setup(name='code-review',
       version='1.0',
       license='Apache 2.0',
-      description='Utilities for reviewing changes in git repositories',
+      description='Utilities for reviewing changes in git and hg repositories',
       package_dir = { '' : 'src' },
       packages=[
           'arcanist',
@@ -30,4 +30,4 @@ setup(name='git-review',
           'gitreview.review',
           'gitreview.scm',
       ],
-      scripts=['src/git-review'])
+      scripts=['src/code-review'])

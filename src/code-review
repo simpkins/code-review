@@ -24,12 +24,12 @@ prompting to open an external diff program or text editor for each file.
 
 Configuration:
 
-- GIT_REVIEW_DIFF
+- CODE_REVIEW_DIFF
   If set, this environment variable specifies the program to use to view diffs
   for modified files.  If unset, the default diff program is tkdiff when
   DISPLAY is set, and "vimdiff -R" when DISPLAY is unset.
 
-- GIT_REVIEW_VIEW, GIT_EDITOR, VISUAL, EDITOR
+- CODE_REVIEW_VIEW, GIT_EDITOR, VISUAL, EDITOR
   These environment variables are checked in order to find the program to use
   to view new files.  If none of these are set, vi is used.
 """
