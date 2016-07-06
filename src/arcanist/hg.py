@@ -226,8 +226,8 @@ class ArcanistHg(object):
             raise Exception('TODO: apply onto remote/master')
 
         # Sort the commit numbers, from highest (most recent) to lowest
-        commit_nums.sort(reverse=True)
-        return [self.repo.repo[num] for num in commit_nums]
+        return [self.repo.repo[num]
+                for num in sorted(commit_nums, reverse=True)]
 
     def _munge_change_path(self, change, change_path):
         if change_path is None:
