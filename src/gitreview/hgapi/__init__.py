@@ -141,7 +141,13 @@ class Repository(object):
     def _get_node(self, commit):
         if commit == COMMIT_WD:
             return None
-        return mercurial.scmutil.revsingle(self.repo, commit)
+        try:
+            return mercurial.scmutil.revsingle(self.repo, commit)
+        except (mercurial.error.RepoError, mercurial.error.Abort):
+            # Unfortunately we can get a variety of different exceptions here
+            # on lookup error.  (RepoLookupError, RepoError, or even
+            # mercurial.error.Abort)
+            raise NoSuchCommitError(commit)
 
     def is_working_dir(self, commit):
         return commit == COMMIT_WD
@@ -156,23 +162,13 @@ class Repository(object):
             raise Exception('cannot get a mercurial commit object for the '
                             'working directory')
 
-        try:
-            node = self._get_node(name)
-        except mercurial.error.HintException:
-            # Unfortunately we can get a variety of different exceptions here
-            # on lookup error.  (RepoLookupError, RepoError, or even
-            # mercurial.error.Abort)
-            raise NoSuchCommitError(name)
-
+        node = self._get_node(name)
         return FakeCommit(node)
 
     def getCommitSha1(self, name, extra_args=None):
         if name is COMMIT_WD:
             return COMMIT_WD
-        try:
-            node = self._get_node(name)
-        except mercurial.error.RepoLookupError:
-            raise NoSuchCommitError(name)
+        node = self._get_node(name)
         return node.hex()
 
     def getBlobContents(self, commit, path, outfile=None):
