@@ -156,9 +156,13 @@ class ArcanistHg(object):
         # The following operations are unfortunately quite slow with a
         # lot of heads.  To speed things up, only look at heads that
         # were created by the same author as the diff we are applying.
+        #
+        # The hg commit user names are binary data.  Encode the diff author as
+        # UTF-8 to search for it.
+        diff_author_bin = diff.author_email.encode('utf-8')
         heads = self.repo.repo.set(relevant_heads)
         for c in heads:
-            if diff.author_email in c.user():
+            if diff_author_bin in c.user():
                 commits_to_check.add(c)
 
         # For each head
