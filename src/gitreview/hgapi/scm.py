@@ -3,7 +3,7 @@
 # Copyright 2004-present Facebook. All Rights Reserved.
 #
 from ..scm import ScmAPI
-from .constants import COMMIT_WD, WorkingDirectoryCommit
+from .constants import COMMIT_WD, COMMIT_WD_STR, WorkingDirectoryCommit
 
 import mercurial.scmutil
 
@@ -17,8 +17,8 @@ class HgAPI(ScmAPI):
         # COMMIT_WD isn't a string, and points to fake WorkingDirectoryCommit
         # objects.  We have to handle it specially, and make sure we don't
         # pass the WorkingDirectoryCommit objects down to mercurial code.
-        if name == COMMIT_WD:
-            return name
+        if name == COMMIT_WD or name == COMMIT_WD_STR:
+            return COMMIT_WD
         # Do an explicit lookup in aliases first, to handle aliases
         # which point to a WorkingDirectoryCommit object.  We don't allow
         # these aliases to be used in more complicated revset expressions,
