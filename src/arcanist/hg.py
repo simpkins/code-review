@@ -390,6 +390,7 @@ class ArcanistHg(object):
         new_lines = []
         terminating_newline = True
         old_idx = -1
+        prev_type = None
         for hunk in change.hunks:
             # Subtract 1 since the hunk offsets are 1-indexed instead of
             # 0-indexed.  (Line 1 is at old_lines[0])
@@ -403,13 +404,17 @@ class ArcanistHg(object):
                 # hunk['isMissingNewNewline'] properties, these doesn't
                 # seem to be set properly.  Instead it puts a bogus line
                 # at the end of the diff output.
-                if (line_idx + 1 == len(corpus_lines) and
-                        line == PHABRICATOR_NO_END_NEWLINE):
-                    terminating_newline = False
+                if line == PHABRICATOR_NO_END_NEWLINE:
+                    # This is effectively a continuation of the previous line.
+                    # It applies to the old/new side depending on if the
+                    # previous line started with + or -.
+                    if prev_type == '+':
+                        terminating_newline = False
                     break
 
                 if line.startswith('+'):
                     new_lines.append(line[1:])
+                    prev_type = '+'
                     continue
 
                 if old is None:
@@ -430,8 +435,10 @@ class ArcanistHg(object):
                                          '%d in old file' % (old_idx + 1))
 
                 if line.startswith(' '):
+                    prev_type = ' '
                     keep_line = True
                 elif line.startswith('-'):
+                    prev_type = '-'
                     keep_line = False
                 else:
                     raise Exception('unexpected line in diff hunk: %r' %
