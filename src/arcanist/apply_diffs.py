@@ -120,7 +120,7 @@ class _Applier(object):
 
         reviewer_names = ', '.join(get_phid_name(phid)
                                    for phid in self.rev.reviewer_phids)
-        template = '''\
+        template = u'''\
 {title}
 
 Summary:
@@ -133,11 +133,12 @@ Reviewers: {reviewers}
 
 Differential Revision: {uri}
 '''
-        return template.format(title=self.rev.title,
-                               summary=self.rev.summary,
-                               test_plan=self.rev.test_plan,
-                               reviewers=reviewer_names,
-                               uri=self.rev.uri)
+        unicode_msg = template.format(title=self.rev.title,
+                                      summary=self.rev.summary,
+                                      test_plan=self.rev.test_plan,
+                                      reviewers=reviewer_names,
+                                      uri=self.rev.uri)
+        return unicode_msg.encode('utf-8')
 
     def _get_path_prefix(self, diff):
         # Figure out if the diff paths are relative to a particular directory
