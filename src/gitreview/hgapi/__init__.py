@@ -47,7 +47,16 @@ class Repository(object):
         self.path = path
         self.workingDir = path
 
-        ui = CustomUI()
+        if hasattr(CustomUI, 'load'):
+            # Ick.  Mercurial has changed its API recently.
+            # New versions of mercurial require using ui.load() to load configs
+            # properly.
+            ui = CustomUI.load()
+        else:
+            # Older versions of mercurial didn't have ui.load() and the
+            # normal constructor load all configs.
+            ui = CustomUI()
+
         # We have to read the local repository config before calling
         # mercurial.extensions.loadall(), in order to figure out what
         # extensions to load.  We need to have loaded all of the correct
