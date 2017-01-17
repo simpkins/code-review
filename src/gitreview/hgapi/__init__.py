@@ -261,4 +261,4 @@ class FakeCommit(object):
 
 
 def is_hg_repo(path):
-    return os.path.exists(os.path.join(path, '.hg', 'hgrc'))
+    return os.path.exists(os.path.join(path, '.hg', 'dirstate'))
