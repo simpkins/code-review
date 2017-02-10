@@ -120,7 +120,7 @@ class ArcanistHg(object):
             # We have to use the remotefilelog-compatible version
             candidates_fn = self._remotefilelog_candidate_commits
 
-        for node in candidates_fn(diff):
+        for node in candidates_fn(diff, metadata):
             yield node
 
         # If all else fails, try master, @, and .
@@ -131,7 +131,7 @@ class ArcanistHg(object):
                 continue
             yield node
 
-    def _remotefilelog_candidate_commits(self, diff):
+    def _remotefilelog_candidate_commits(self, diff, metadata):
         '''
         Walk all ancestors of remote/master which touched any of the modified
         files.
@@ -159,7 +159,7 @@ class ArcanistHg(object):
         #
         # The hg commit user names are binary data.  Encode the diff author as
         # UTF-8 to search for it.
-        diff_author_bin = diff.author_email.encode('utf-8')
+        diff_author_bin = metadata.author_email.encode('utf-8')
         heads = self.repo.repo.set(relevant_heads)
         for c in heads:
             if diff_author_bin in c.user():
@@ -211,7 +211,7 @@ class ArcanistHg(object):
                 heapq.heappushpop(rev_heap, new_item)
                 seen.add(next_rev)
 
-    def _normal_candidate_commits(self, diff):
+    def _normal_candidate_commits(self, diff, metadata):
         '''
         Walk all commits which touched any of the files modified by this diff.
 
@@ -488,6 +488,10 @@ class ArcanistHg(object):
 
     def find_base_commit(self, diff):
         arc_base_rev = diff.all_params['sourceControlBaseRevision']
+        if not arc_base_rev:
+            # Unfortunately diffs created by jellyfish are missing
+            # base revision information
+            return None
         # The mercurial library code complains about unicode strings,
         # so encode this to a byte string.
         arc_base_rev = arc_base_rev.encode('utf-8')

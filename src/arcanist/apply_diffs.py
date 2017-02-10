@@ -14,6 +14,7 @@ from gitreview import hgapi
 import os
 import logging
 import pprint
+import time
 
 
 def apply_diffs(repo, rev_id):
@@ -34,6 +35,7 @@ class _Applier(object):
         self.conduit = None
         self.rev = None
         self._commit_msg = None
+        self._user_cache = {}
 
         self.repo = repo
         self.rev_id = rev_id
@@ -99,11 +101,37 @@ class _Applier(object):
     def _get_commit_info(self, diff, parent_commit):
         if self._commit_msg is None:
             self._commit_msg = self._get_commit_msg()
-        return CommitInfo(author_name=diff.all_params['authorName'],
-                          author_email=diff.all_params['authorEmail'],
+
+        # Ugh.  Diffs created by jellyfish are missing many parameters.
+        # Pull data from the revision if it isn't present on the diff.
+        author_name = diff.all_params.get('authorName')
+        if not author_name:
+            author_phid = self.rev.author_phid
+            author_name, author_email = self._get_user_info(author_phid)
+        else:
+            author_email=diff.all_params['authorEmail']
+
+        timestamp = diff.all_params.get('dateCreated')
+        if timestamp is None:
+            # Just default to the current time.
+            timestamp = time.time()
+
+        return CommitInfo(author_name=author_name,
+                          author_email=author_email,
                           timestamp=diff.all_params['dateCreated'],
                           message=self._commit_msg,
                           prev=parent_commit)
+
+    def _get_user_info(self, phid):
+        if phid in self._user_cache:
+            return self._user_cache[phid]
+
+        info = self.conduit.call_method('user.query', phids=[phid])[0]
+        name = info['realName']
+        email = '%s@fb.com' % info['userName']
+
+        self._user_cache[phid] = name, email
+        return name, email
 
     def _get_commit_msg(self):
         relevant_phids = [self.rev.author_phid] + self.rev.reviewer_phids
