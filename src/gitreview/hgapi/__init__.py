@@ -79,7 +79,7 @@ class Repository(object):
         '''
         if self.repo.shared():
             return os.path.join(self.repo.sharedpath, path, *extra)
-        return self.repo.join(path, *extra)
+        return self.repo.vfs.join(path, *extra)
 
     def getDiff(self, parent, child, paths=None):
         entries = DiffFileList(parent, child)
@@ -261,4 +261,7 @@ class FakeCommit(object):
 
 
 def is_hg_repo(path):
-    return os.path.exists(os.path.join(path, '.hg', 'dirstate'))
+    # Mercurial only checks if .hg exists and is a directory.
+    # The contents inside .hg may be quite different depending on the
+    # extensions being used.
+    return os.path.isdir(os.path.join(path, '.hg'))
