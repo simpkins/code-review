@@ -16,7 +16,6 @@ from gitreview.git.exceptions import NoSuchCommitError
 from gitreview.hgapi import FakeCommit
 
 from mercurial.context import memctx, memfilectx
-from mercurial.scmutil import revrange
 import mercurial.error
 import mercurial.util
 
@@ -59,7 +58,8 @@ class ArcanistHg(object):
         #
         # The phabricator revision does have a 'local:commits' field, but it is
         # unfortunately useless.  Rather than listing all local commits since
-        # the last public commit, it just lists the one single commit since ".^"
+        # the last public commit, it just lists the one single commit since
+        # ".^"
         #
         # Try each commit that modified any of the files in question.
         #
@@ -323,7 +323,7 @@ class ArcanistHg(object):
         elif change.type == ChangeSet.TYPE_MOVE_AWAY:
             new_path = self._current_path(change)
             assert change.old_path is None, \
-                    'non-empty old path %r' % (change.old_path,)
+                'non-empty old path %r' % (change.old_path,)
             new_data[new_path] = (None, None)
         elif change.type == ChangeSet.TYPE_COPY_AWAY:
             # Nothing to do for this case
@@ -401,7 +401,7 @@ class ArcanistHg(object):
             # 0-indexed.  (Line 1 is at old_lines[0])
             old_idx = hunk['oldOffset'] - 1
             corpus_lines = hunk['corpus'].splitlines()
-            for line_idx, line in enumerate(corpus_lines):
+            for line in corpus_lines:
                 line = line.encode('utf-8')
 
                 # Even though phabricator does include
