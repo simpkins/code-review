@@ -267,7 +267,12 @@ class ArcanistHg(object):
         if bad_paths:
             raise BadPatchError(node, bad_paths)
 
-        parent_ctx = self.repo.repo[node]
+        with self.repo.repo.wlock():
+            with self.repo.repo.lock():
+                return self._create_commit(node, diff, rev, metadata, new_data)
+
+    def _create_commit(self, node, diff, rev, metadata, new_data):
+
         def getfilectx(repo, memctx, path):
             (data, old_path) = new_data[path]
             if data is None:
