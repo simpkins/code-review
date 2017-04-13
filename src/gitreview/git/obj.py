@@ -25,6 +25,11 @@ class Object(object):
 # A tree entry isn't really an object as far as git is concerned,
 # but there doesn't seem to be a better location to define this class.
 class TreeEntry(object):
+    # The mercurial Repository.listTree() code can create lots of TreeEntry
+    # objects, so explicitly define __slots__ for them to reduce memory
+    # overhead.
+    __slots__ = ('name', 'mode', 'type', 'sha1')
+
     def __init__(self, name, mode, type, sha1):
         self.name = name
         self.mode = mode
@@ -35,8 +40,8 @@ class TreeEntry(object):
         return self.name
 
     def __repr__(self):
-        return 'TreeEntry(%r, %r, %r, %r)' % (self.name, self.mode, self.type,
-                                              self.sha1)
+        return 'TreeEntry(%r, %#o, %r, %r)' % (self.name, self.mode, self.type,
+                                               self.sha1)
 
 
 # An index entry isn't really an object as far as git is concerned,

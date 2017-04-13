@@ -531,7 +531,7 @@ class Repository(object):
                 raise proc.CmdFailedError(args, msg)
             try:
                 (mode_str, type, sha1) = info.split(' ')
-                mode = int(mode_str, 0)
+                mode = int(mode_str, 8)
             except ValueError:
                 msg = 'unexpected output from git ls-tree: %r' % (line,)
                 args = [constants.GIT_EXE] + cmd
