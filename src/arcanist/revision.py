@@ -81,7 +81,7 @@ class Diff(object):
         # without having to call "arc export".
         cmd = ['arc', 'export', '--diff', str(self.id), '--git']
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+                             stderr=subprocess.PIPE, close_fds=True)
         (out, err) = p.communicate()
         if p.returncode != 0:
             cmd_str = ' '.join(cmd)

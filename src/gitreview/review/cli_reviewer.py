@@ -412,7 +412,7 @@ class DiffCommand(cli.ArgCommand):
 
         cmd = cli_obj.get_diff_command(*files)
         try:
-            p = subprocess.Popen(cmd)
+            p = subprocess.Popen(cmd, close_fds=True)
         except OSError, ex:
             cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
             return 1
@@ -463,7 +463,7 @@ class ViewCommand(cli.ArgCommand):
 
         cmd = cli_obj.get_view_command(file)
         try:
-            p = subprocess.Popen(cmd)
+            p = subprocess.Popen(cmd, close_fds=True)
         except OSError, ex:
             cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
             return 1
