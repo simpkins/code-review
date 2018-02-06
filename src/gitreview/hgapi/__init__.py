@@ -60,12 +60,20 @@ class Repository(object):
             # normal constructor load all configs.
             ui = CustomUI()
 
-        # We have to read the local repository config before calling
-        # mercurial.extensions.loadall(), in order to figure out what
-        # extensions to load.  We need to have loaded all of the correct
-        # extensions before trying to create a repository object.
-        ui.readconfig(os.path.join(self.path, ".hg", "hgrc"), path)
-        mercurial.extensions.loadall(ui)
+        # Parse the repository's .hg/hgrc file, and load any extensions
+        # listed there.  This must be done before creating the repository
+        # object.
+        #
+        # This matches mercurial's config loading behavior.
+        local_ui = ui.copy()
+        local_ui.readconfig(os.path.join(self.path, ".hg", "hgrc"), path)
+        mercurial.extensions.loadall(local_ui)
+
+        # Create the repository object.
+        #
+        # Note that we use the original ui object rather than local_ui.
+        # This is necessary to get the correct configuration for subsequent
+        # repo objects created via the share extension.
         self.repo = mercurial.hg.repository(ui, self.path).unfiltered()
 
     def hasWorkingDirectory(self):
