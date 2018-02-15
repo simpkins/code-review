@@ -492,6 +492,27 @@ class ArcanistHg(object):
         return result
 
     def find_base_commit(self, diff):
+        # Facebook's internal phabricator instance includes a
+        # "facebook:public_ancestor" property that we can use to find the most
+        # recent public parent of the specified commit.
+        if diff.public_ancestor is not None:
+            try:
+                return self.repo.getCommit(diff.public_ancestor)
+            except NoSuchCommitError:
+                # The public_ancestor should normally point to a valid public
+                # commit.  If we don't have it then it likely means that the
+                # user needs to run "hg pull" before retrying.
+                #
+                # Raise an exception here telling the user to do so
+                # rather than falling through.
+                raise PathPatchError('missing public ancestor commit %s: '
+                                     'try running "hg pull" and then retry' %
+                                     (diff.public_ancestor[:10],))
+
+        # Phabricator has a sourceControlBaseRevision field that contains
+        # information about this commits parent.  Unfortunately if this diff is
+        # part of a stack of commits the parent commit might have been a
+        # private commit that is only available in the author's repository.
         arc_base_rev = diff.all_params['sourceControlBaseRevision']
         if not arc_base_rev:
             # Unfortunately diffs created by jellyfish are missing

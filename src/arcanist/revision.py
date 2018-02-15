@@ -12,10 +12,18 @@ def _populate_json_object(object, params, mapping):
     for key, attr_name in mapping.iteritems():
         if not attr_name:
             attr_name = key
-        if params.has_key(key):
-            setattr(object, attr_name, params[key])
-        else:
-            setattr(object, attr_name, None)
+        if isinstance(key, str):
+            key = (key,)
+
+        value = params
+        for key_part in key:
+            if isinstance(value, dict) and value.has_key(key_part):
+                value = value[key_part]
+            else:
+                value = None
+                break
+
+        setattr(object, attr_name, value)
 
 
 class ChangeSet(object):
@@ -70,6 +78,7 @@ class Diff(object):
             'sourceControlPath': 'src_control_path',
             'authorEmail': 'author_email',
             'authorName': 'author_name',
+            ('properties', 'facebook:public_ancestor'): 'public_ancestor',
         }
         _populate_json_object(self, params, mapping)
 
