@@ -193,5 +193,13 @@ Differential Revision: {uri}
         except NoArcConfigError:
             pass
 
-        raise Exception('cannot apply diff for unknown arcanist project %s' %
-                        diff_project)
+        # Just return the default prefix.
+        # We used to fail here if the project ID in phabricator did not match
+        # the local project ID in .arcconfig; This matched the original
+        # behavior of "arc patch".
+        #
+        # However, some Facebook repositories now use "subproject" IDs in
+        # phabricator.  The project ID listed in phabricator is usually a
+        # subproject ID, and does not match the top-level project ID in
+        # .arcconfig any more.
+        return default_prefix
