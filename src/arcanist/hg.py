@@ -282,7 +282,7 @@ class ArcanistHg(object):
                 # backtrace if we give it unicode data.
                 assert not isinstance(data, unicode), \
                         'BUG: generated unicode data for path %r' % path
-            return memfilectx(repo, path, data, copied=old_path)
+            return memfilectx(repo, memctx, path, data, copied=old_path)
 
         fileset = set(new_data)
 
