@@ -18,7 +18,7 @@ import time
 
 
 def apply_diffs(repo, rev_id):
-    return _Applier(repo, rev_id).run()
+    return _Applier(repo).run(rev_id)
 
 
 class CommitInfo(object):
@@ -31,26 +31,24 @@ class CommitInfo(object):
 
 
 class _Applier(object):
-    def __init__(self, repo, rev_id):
+    def __init__(self, repo):
         self.conduit = None
-        self.rev = None
-        self._commit_msg = None
+        self._commit_msg_cache = {}
         self._user_cache = {}
 
         self.repo = repo
-        self.rev_id = rev_id
         self.arc_dir = WorkingCopy(os.getcwd())
         if isinstance(repo, hgapi.Repository):
             self.arc_scm = arc_hg.ArcanistHg(repo)
         else:
             self.arc_scm = arc_git.ArcanistGit(repo)
 
-    def run(self):
+    def run(self, rev_id):
         self.conduit = ArcanistConduitClient(self.arc_dir)
         self.conduit.connect()
-        self.rev = revision.get_revision(self.conduit, self.rev_id)
+        rev = revision.get_revision(self.conduit, rev_id)
 
-        existing = self.arc_scm.find_diff_commits(self.rev)
+        existing = self.arc_scm.find_diff_commits(rev)
 
         # If a previous run skipped some early diffs, and applied later ones,
         # only start processing after the diffs that were already applied.
@@ -59,7 +57,7 @@ class _Applier(object):
         # If we have already app
         results = []
         to_apply = []
-        for diff_idx, diff in enumerate(self.rev.diffs):
+        for diff_idx, diff in enumerate(rev.diffs):
             commit = existing.get(diff.id)
             if commit is None:
                 to_apply.append((diff_idx, diff))
@@ -73,19 +71,19 @@ class _Applier(object):
                 prev_commit = results[-1]
             else:
                 prev_commit = None
-            info = self._get_commit_info(diff, prev_commit)
+            info = self._get_commit_info(rev, diff, prev_commit)
 
             # Figure out what directory these diff changes apply to.
             # Store that as a property of the diff object.
             diff.repo_path_prefix = self._get_path_prefix(diff)
 
             try:
-                commit = self.arc_scm.apply_diff(diff, self.rev, info)
+                commit = self.arc_scm.apply_diff(diff, rev, info)
                 results.append(commit)
             except PatchFailedError as ex:
                 # We always need to apply the current diff (the last one in the
                 # list) in order for review.
-                if diff_idx + 1 == len(self.rev.diffs):
+                if diff_idx + 1 == len(rev.diffs):
                     raise
 
                 # However, for previous diffs that aren't the current one, just
@@ -98,15 +96,14 @@ class _Applier(object):
 
         return results
 
-    def _get_commit_info(self, diff, parent_commit):
-        if self._commit_msg is None:
-            self._commit_msg = self._get_commit_msg()
+    def _get_commit_info(self, rev, diff, parent_commit):
+        commit_msg = self._get_commit_msg(rev)
 
         # Ugh.  Diffs created by jellyfish are missing many parameters.
         # Pull data from the revision if it isn't present on the diff.
         author_name = diff.all_params.get('authorName')
         if not author_name:
-            author_phid = self.rev.author_phid
+            author_phid = rev.author_phid
             author_name, author_email = self._get_user_info(author_phid)
         else:
             author_email=diff.all_params['authorEmail']
@@ -119,7 +116,7 @@ class _Applier(object):
         return CommitInfo(author_name=author_name,
                           author_email=author_email,
                           timestamp=diff.all_params['dateCreated'],
-                          message=self._commit_msg,
+                          message=commit_msg,
                           prev=parent_commit)
 
     def _get_user_info(self, phid):
@@ -133,8 +130,15 @@ class _Applier(object):
         self._user_cache[phid] = name, email
         return name, email
 
-    def _get_commit_msg(self):
-        relevant_phids = [self.rev.author_phid] + self.rev.reviewer_phids
+    def _get_commit_msg(self, rev):
+        commit_msg = self._commit_msg_cache.get(rev.id, None)
+        if commit_msg is None:
+            commit_msg = self._compute_commit_msg(rev)
+            self._commit_msg_cache[rev.id] = commit_msg
+        return commit_msg
+
+    def _compute_commit_msg(self, rev):
+        relevant_phids = [rev.author_phid] + rev.reviewer_phids
         phid_map = self.conduit.call_method('phid.query', phids=relevant_phids)
 
         def get_phid_name(phid):
@@ -147,7 +151,7 @@ class _Applier(object):
             raise Exception('unknown PHID type for %r: %r' % (phid, info))
 
         reviewer_names = ', '.join(get_phid_name(phid)
-                                   for phid in self.rev.reviewer_phids)
+                                   for phid in rev.reviewer_phids)
         template = u'''\
 {title}
 
@@ -161,11 +165,11 @@ Reviewers: {reviewers}
 
 Differential Revision: {uri}
 '''
-        unicode_msg = template.format(title=self.rev.title,
-                                      summary=self.rev.summary,
-                                      test_plan=self.rev.test_plan,
+        unicode_msg = template.format(title=rev.title,
+                                      summary=rev.summary,
+                                      test_plan=rev.test_plan,
                                       reviewers=reviewer_names,
-                                      uri=self.rev.uri)
+                                      uri=rev.uri)
         return unicode_msg.encode('utf-8')
 
     def _get_path_prefix(self, diff):
