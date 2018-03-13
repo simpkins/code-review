@@ -30,7 +30,7 @@ class ArcanistGit(object):
 
         return results
 
-    def apply_diff(self, diff, rev, metadata):
+    def apply_diff(self, applier, rev, diff, metadata):
         logging.debug('Applying diff %s', diff.id)
 
         # Phabricator lists the base revision that this diff applied to.

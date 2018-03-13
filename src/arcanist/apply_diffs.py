@@ -43,7 +43,19 @@ class _Applier(object):
         else:
             self.arc_scm = arc_git.ArcanistGit(repo)
 
+        self._rev_results = {}
+
     def run(self, rev_id):
+        # The same _Applier object may be asked to apply multiple revisions
+        # when processing dependencies.  Keep track of which revisions we have
+        # already processed or started processing.
+        #
+        # This avoids repeating work and also helps us avoid looping forever if
+        # there is a cycle in the dependency list.
+        if rev_id in self._rev_results:
+            return self._rev_results[rev_id][:]
+        self._rev_results[rev_id] = None
+
         self.conduit = ArcanistConduitClient(self.arc_dir)
         self.conduit.connect()
         rev = revision.get_revision(self.conduit, rev_id)
@@ -78,7 +90,7 @@ class _Applier(object):
             diff.repo_path_prefix = self._get_path_prefix(diff)
 
             try:
-                commit = self.arc_scm.apply_diff(diff, rev, info)
+                commit = self.arc_scm.apply_diff(self, rev, diff, info)
                 results.append(commit)
             except PatchFailedError as ex:
                 # We always need to apply the current diff (the last one in the
@@ -94,6 +106,7 @@ class _Applier(object):
                               diff_idx + 1, diff.id)
                 continue
 
+        self._rev_results[rev_id] = results[:]
         return results
 
     def _get_commit_info(self, rev, diff, parent_commit):

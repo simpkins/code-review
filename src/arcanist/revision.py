@@ -136,6 +136,9 @@ class Revision(object):
             # Sort the diffs in ascending order by ID.
             self.diffs.sort(key = lambda d: d.id)
 
+        aux = self.all_params.get('auxiliary', {})
+        self.depends_on_phids = aux.get('phabricator:depends-on', [])
+
     def get_active_diff(self):
         if not self.diffs:
             raise Exception('revision %s has no diffs' % (self.id,))

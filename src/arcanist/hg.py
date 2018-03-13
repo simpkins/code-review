@@ -40,7 +40,7 @@ class ArcanistHg(object):
         self.repo = repo
         self.debug_patches = False
 
-    def apply_diff(self, diff, rev, metadata):
+    def apply_diff(self, applier, rev, diff, metadata):
         logging.debug('Applying diff %s', diff.id)
 
         # Phabricator lists the base revision that this diff applied to.
@@ -52,6 +52,14 @@ class ArcanistHg(object):
             logging.debug('found base revision %s for diff %s',
                           parent.node.hex(), diff.id)
             return self._apply_diff(parent.node, diff, rev, metadata)
+
+        # If the phabricator diff lists a public ancestor use that
+        ancestor = self.find_public_ancestor(diff)
+        if ancestor is not None:
+            logging.debug('found public ancestor %s for diff %s',
+                          ancestor.node.hex(), diff.id)
+            return self._apply_on_ancestor(ancestor, applier, rev, diff,
+                                           metadata)
 
         # We didn't find the base commit specified by phabricator.
         # Try to find another commit that works instead.
@@ -82,6 +90,63 @@ class ArcanistHg(object):
 
         raise PatchFailedError('unable to find a commit where diff %s '
                                'applies' % (diff.id,))
+
+    def _apply_on_ancestor(self, ancestor, applier, rev, diff, metadata):
+        # If this diff does not have any dependencies listed,
+        # simply apply the diff directly onto the public ancestor.
+        if not rev.depends_on_phids:
+            # Try applying the commit directly onto the ancestor
+            logging.debug('applying diff %s to public ancestor %s',
+                          diff.id, self._fmt_commit_info(ancestor.node))
+            return self._apply_diff(ancestor.node, diff, rev, metadata)
+
+        # Translate the PHIDs of the dependencies into revision IDs.
+        deps = rev.depends_on_phids
+        response = applier.conduit.call_method('differential.query',
+                                           phids=deps)
+        dep_rev_ids = [info['id'] for info in response]
+
+        # Apply all of the diffs from each revision we depend on
+        common_ancestor_dep_commits = []
+        other_dep_commits = []
+        seen_commits = set()
+        for rev_id in dep_rev_ids:
+            logging.debug('Applying diffs from dependency D%s', rev_id)
+            commits = applier.run(rev_id)
+            for commit in commits:
+                if commit in seen_commits:
+                    continue
+                seen_commits.add(commit)
+                dep_ancestor = self._get_public_ancestor(commit)
+                if dep_ancestor.node.node() == ancestor.node.node():
+                    common_ancestor_dep_commits.append(commit)
+                else:
+                    other_dep_commits.append(commit)
+
+        # Now try applying our commit onto all of the commits from our
+        # dependencies.
+        #
+        # Prefer commits that share the same public ancestor, and try them in
+        # reverse order, from newest diff to oldest.
+        candidates = reversed(other_dep_commits + common_ancestor_dep_commits)
+        for commit in candidates:
+            logging.debug('trying to apply diff %s onto dependency %s',
+                          diff.id, self._fmt_commit_info(commit.node))
+            try:
+                return self._apply_diff(commit.node, diff, rev, metadata)
+            except BadPatchError as ex:
+                logging.debug('  Patch failed:')
+                for path, reason in ex.paths.items():
+                    logging.debug('    %s: %s', path, reason)
+
+        logging.debug('trying to apply diff %s to public ancestor %s, '
+                      'ignoring dependencies',
+                      diff.id, self._fmt_commit_info(ancestor.node))
+        return self._apply_diff(ancestor.node, diff, rev, metadata)
+
+    def _get_public_ancestor(self, commit):
+        revset = ('max(::%r & public())' % commit.node.hex())
+        return self.repo.getCommit(revset)
 
     def _fmt_commit_info(self, node):
         short_hex = node.hex()[:7]
@@ -491,24 +556,27 @@ class ArcanistHg(object):
             result += b'\n'
         return result
 
-    def find_base_commit(self, diff):
+    def find_public_ancestor(self, diff):
         # Facebook's internal phabricator instance includes a
         # "facebook:public_ancestor" property that we can use to find the most
         # recent public parent of the specified commit.
-        if diff.public_ancestor is not None:
-            try:
-                return self.repo.getCommit(diff.public_ancestor)
-            except NoSuchCommitError:
-                # The public_ancestor should normally point to a valid public
-                # commit.  If we don't have it then it likely means that the
-                # user needs to run "hg pull" before retrying.
-                #
-                # Raise an exception here telling the user to do so
-                # rather than falling through.
-                raise PathPatchError('missing public ancestor commit %s: '
-                                     'try running "hg pull" and then retry' %
-                                     (diff.public_ancestor[:10],))
+        if diff.public_ancestor is None:
+            return None
 
+        try:
+            return self.repo.getCommit(diff.public_ancestor)
+        except NoSuchCommitError:
+            # The public_ancestor should normally point to a valid public
+            # commit.  If we don't have it then it likely means that the
+            # user needs to run "hg pull" before retrying.
+            #
+            # Raise an exception here telling the user to do so
+            # rather than falling through.
+            raise PathPatchError('missing public ancestor commit %s: '
+                                 'try running "hg pull" and then retry' %
+                                 (diff.public_ancestor[:10],))
+
+    def find_base_commit(self, diff):
         # Phabricator has a sourceControlBaseRevision field that contains
         # information about this commits parent.  Unfortunately if this diff is
         # part of a stack of commits the parent commit might have been a
