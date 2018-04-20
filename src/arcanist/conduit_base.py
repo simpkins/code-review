@@ -114,7 +114,16 @@ class ConduitClient(object):
         response = conn.getresponse()
         response_data = response.read()
 
-        if response.status != 200:
+        if response.status == 302:
+            # This can happen in some cases if the phabricator hosts are
+            # misconfigured and attempt to redirect to a login page.
+            # Include the redirect URL in the exception message to help debug
+            # the issue.
+            raise Exception('%s returned 302 redirect to %s in response '
+                            'to conduit method call %s: %s' %
+                            (self.uri, response.getheader('Location'), method,
+                             response.reason))
+        elif response.status != 200:
             raise Exception('%s returned HTTP error response %s in response '
                             'to conduit method call %s: %s' %
                             (self.uri, response.status, method,
