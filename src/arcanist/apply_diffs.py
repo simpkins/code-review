@@ -53,7 +53,15 @@ class _Applier(object):
         # This avoids repeating work and also helps us avoid looping forever if
         # there is a cycle in the dependency list.
         if rev_id in self._rev_results:
-            return self._rev_results[rev_id][:]
+            results = self._rev_results[rev_id]
+            if results is None:
+                # We were invoked recursively and are still in the process
+                # of applying diffs for this revision.  Just return the empty
+                # list so our caller can continue.  Our original invocation
+                # will complete later to try and finish applying diffs for this
+                # revision.
+                return []
+            return results[:]
         self._rev_results[rev_id] = None
 
         self.conduit = ArcanistConduitClient(self.arc_dir)
