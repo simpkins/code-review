@@ -357,7 +357,10 @@ class ArcanistHg(object):
             parents = (node, metadata.prev_commit.node)
 
         msg = metadata.message
-        user = '%s <%s>' % (metadata.author_name, metadata.author_email)
+        user = '%s <%s>' % (
+            metadata.author_name.encode('utf-8'),
+            metadata.author_email.encode('utf-8')
+        )
         date = mercurial.util.makedate(metadata.timestamp)
 
         ctx = memctx(self.repo.repo, parents, msg, fileset, getfilectx,
