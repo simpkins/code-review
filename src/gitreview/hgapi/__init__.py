@@ -12,8 +12,9 @@ import mercurial.match
 import mercurial.scmutil
 import mercurial.ui
 
-import mercurial.extensions
 import mercurial.commands
+import mercurial.extensions
+import mercurial.progress
 
 from .constants import *
 from ..git.diff import DiffFileList, DiffEntry, Status
@@ -67,6 +68,7 @@ class Repository(object):
         # This matches mercurial's config loading behavior.
         local_ui = ui.copy()
         local_ui.readconfig(os.path.join(self.path, ".hg", "hgrc"), path)
+        mercurial.progress.setup(local_ui)
         mercurial.extensions.loadall(local_ui)
 
         # Create the repository object.
