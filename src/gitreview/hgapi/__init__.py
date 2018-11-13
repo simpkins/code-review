@@ -68,7 +68,8 @@ class Repository(object):
         # This matches mercurial's config loading behavior.
         local_ui = ui.copy()
         local_ui.readconfig(os.path.join(self.path, ".hg", "hgrc"), path)
-        mercurial.progress.setup(local_ui)
+        if hasattr(mercurial.progress, 'setup'):
+            mercurial.progress.setup(local_ui)
         mercurial.extensions.loadall(local_ui)
 
         # Create the repository object.
