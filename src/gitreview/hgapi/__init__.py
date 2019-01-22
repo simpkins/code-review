@@ -5,6 +5,16 @@
 import os
 import shutil
 import stat
+import sys
+
+import mercurial.thirdparty
+
+# After D13505762, Facebook Mercurial requires explicitly updating sys.path
+# so it can find its sources.
+_ipypath = os.path.join(
+    os.path.dirname(mercurial.thirdparty.__file__), "IPython.zip")
+if _ipypath not in sys.path and os.path.exists(_ipypath):
+    sys.path.insert(0, _ipypath)
 
 import mercurial.error
 import mercurial.hg
