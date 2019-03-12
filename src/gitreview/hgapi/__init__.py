@@ -131,8 +131,7 @@ class Repository(object):
         always_match = mercurial.match.match(self.repo.root,
                                              self.repo.getcwd(), [])
         stat = self.repo.status(parent_node, child_node, always_match,
-                                ignored=False, clean=False, unknown=False,
-                                listsubrepos=False)
+                                ignored=False, clean=False, unknown=False)
         modified, added, removed, deleted, unknown, ignored, clean = stat
 
         old_paths = set()
