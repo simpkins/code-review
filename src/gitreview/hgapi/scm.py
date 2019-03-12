@@ -5,7 +5,11 @@
 from ..scm import ScmAPI
 from .constants import COMMIT_WD, COMMIT_WD_STR, WorkingDirectoryCommit
 
-import mercurial.scmutil
+try:
+    import edenscm.mercurial as mercurial
+    import edenscm.mercurial.scmutil
+except ImportError:
+    import mercurial.scmutil
 
 
 class HgAPI(ScmAPI):

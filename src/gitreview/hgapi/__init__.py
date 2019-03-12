@@ -7,7 +7,11 @@ import shutil
 import stat
 import sys
 
-import mercurial.thirdparty
+try:
+    import edenscm.mercurial as mercurial
+    import edenscm.mercurial.thirdparty
+except ImportError:
+    import mercurial.thirdparty
 
 # After D13505762, Facebook Mercurial requires explicitly updating sys.path
 # so it can find its sources.
@@ -16,15 +20,26 @@ _ipypath = os.path.join(
 if _ipypath not in sys.path and os.path.exists(_ipypath):
     sys.path.insert(0, _ipypath)
 
-import mercurial.error
-import mercurial.hg
-import mercurial.match
-import mercurial.scmutil
-import mercurial.ui
+try:
+    import edenscm.mercurial.error
+    import edenscm.mercurial.hg
+    import edenscm.mercurial.match
+    import edenscm.mercurial.scmutil
+    import edenscm.mercurial.ui
 
-import mercurial.commands
-import mercurial.extensions
-import mercurial.progress
+    import edenscm.mercurial.commands
+    import edenscm.mercurial.extensions
+    import edenscm.mercurial.progress
+except ImportError:
+    import mercurial.error
+    import mercurial.hg
+    import mercurial.match
+    import mercurial.scmutil
+    import mercurial.ui
+
+    import mercurial.commands
+    import mercurial.extensions
+    import mercurial.progress
 
 from .constants import *
 from ..git.diff import DiffFileList, DiffEntry, Status

@@ -15,9 +15,15 @@ from .revision import ChangeSet
 from gitreview.git.exceptions import NoSuchCommitError
 from gitreview.hgapi import FakeCommit
 
-from mercurial.context import memctx, memfilectx
-import mercurial.error
-import mercurial.util
+try:
+    import edenscm.mercurial as mercurial
+    from edenscm.mercurial.context import memctx, memfilectx
+    import edenscm.mercurial.error
+    import edenscm.mercurial.util
+except ImportError:
+    from mercurial.context import memctx, memfilectx
+    import mercurial.error
+    import mercurial.util
 
 
 SVN_REV_REGEX = re.compile(r'^svn\+ssh://.*@(?P<svn_rev>[0-9]+)$')
