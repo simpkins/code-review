@@ -104,6 +104,10 @@ class Repository(object):
         # repo objects created via the share extension.
         self.repo = mercurial.hg.repository(ui, self.path).unfiltered()
 
+    def close(self):
+        self.repo.close()
+        self.repo = None
+
     def hasWorkingDirectory(self):
         # Mercurial doesn't have bare repositories
         return True

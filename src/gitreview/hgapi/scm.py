@@ -17,6 +17,13 @@ class HgAPI(ScmAPI):
         super(HgAPI, self).__init__()
         self.repo = repo
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.repo.close()
+        return
+
     def expand_commit_name(self, name, aliases):
         # COMMIT_WD isn't a string, and points to fake WorkingDirectoryCommit
         # objects.  We have to handle it specially, and make sure we don't

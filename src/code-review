@@ -241,24 +241,24 @@ def main(argv):
                         format='%(asctime)s %(message)s')
 
     # Find the repository we are operating in
-    scm = find_repo(ap, args)
-    if isinstance(scm.repo, hgapi.Repository):
-        _resolve_commits_hg(ap, args)
-    else:
-        _resolve_commits_git(ap, args)
+    with find_repo(ap, args) as scm:
+        if isinstance(scm.repo, hgapi.Repository):
+            _resolve_commits_hg(ap, args)
+        else:
+            _resolve_commits_git(ap, args)
 
-    if args.differential:
-        try:
-            rev = setup_phabricator_review(scm, args)
-        except (NoSuchRevisionError, git.PatchFailedError,
-                NoDiffsError), ex:
-            sys.stderr.write('%s: error: %s\n' % (f_progname, ex))
-            return RETCODE_PHABRICATOR_ERROR
-    else:
-        diff = scm.repo.getDiff(args.parent_commit, args.child_commit)
-        rev = review.Review(scm, diff)
+        if args.differential:
+            try:
+                rev = setup_phabricator_review(scm, args)
+            except (NoSuchRevisionError, git.PatchFailedError,
+                    NoDiffsError), ex:
+                sys.stderr.write('%s: error: %s\n' % (f_progname, ex))
+                return RETCODE_PHABRICATOR_ERROR
+        else:
+            diff = scm.repo.getDiff(args.parent_commit, args.child_commit)
+            rev = review.Review(scm, diff)
 
-    return review.CliReviewer(rev).run()
+        return review.CliReviewer(rev).run()
 
 
 if __name__ == '__main__':
