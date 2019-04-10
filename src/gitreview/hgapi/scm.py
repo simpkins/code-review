@@ -18,10 +18,11 @@ class HgAPI(ScmAPI):
         self.repo = repo
 
     def __enter__(self):
+        self.repo.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.repo.close()
+        self.repo.__exit__(exc_type, exc_value, traceback)
         return
 
     def expand_commit_name(self, name, aliases):

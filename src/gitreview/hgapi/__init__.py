@@ -41,6 +41,11 @@ except ImportError:
     import mercurial.extensions
     import mercurial.progress
 
+try:
+    import edenscm.mercurial.perftrace as perftrace
+except ImportError:
+    perftrace = None
+
 from .constants import *
 from ..git.diff import DiffFileList, DiffEntry, Status
 from ..git.exceptions import NoSuchCommitError
@@ -97,6 +102,12 @@ class Repository(object):
             mercurial.progress.setup(local_ui)
         mercurial.extensions.loadall(local_ui)
 
+        # FB mercurial now requires starting a perftrace
+        self.trace = None
+        if perftrace is not None:
+            self.trace = perftrace.trace("code-review")
+            self.trace.__enter__()
+
         # Create the repository object.
         #
         # Note that we use the original ui object rather than local_ui.
@@ -107,6 +118,14 @@ class Repository(object):
     def close(self):
         self.repo.close()
         self.repo = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+        if self.trace is not None:
+            return self.trace.__exit__(exc_type, exc_value, traceback)
 
     def hasWorkingDirectory(self):
         # Mercurial doesn't have bare repositories
