@@ -19,6 +19,12 @@ _ipypath = os.path.join(
     os.path.dirname(mercurial.thirdparty.__file__), "IPython.zip")
 if _ipypath not in sys.path and os.path.exists(_ipypath):
     sys.path.insert(0, _ipypath)
+_eden_deps_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(mercurial.__file__))),
+    "edenscmdeps.zip"
+)
+if _eden_deps_path not in sys.path and os.path.exists(_eden_deps_path):
+    sys.path.insert(0, _eden_deps_path)
 
 try:
     import edenscm.mercurial.error
