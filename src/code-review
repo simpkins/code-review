@@ -40,9 +40,6 @@ import os
 import sys
 
 import gitreview.git as git
-import gitreview.hgapi as hgapi
-from gitreview.git.scm import GitAPI
-from gitreview.hgapi.scm import HgAPI
 import gitreview.review as review
 import gitreview.scm.util
 
@@ -148,22 +145,6 @@ def setup_phabricator_review_impl(scm, options, rev_id):
     return rev
 
 
-def find_repo(ap, args):
-    if args.git_dir is not None or args.work_tree is not None:
-        if args.hg_repo is not None:
-            ap.error('Cannot specify both a mercurial and a git repository')
-        repo = git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
-        return GitAPI(repo)
-
-    if args.hg_repo is not None:
-        repo = hgapi.Repository(args.hg_repo)
-        return HgAPI(repo)
-
-    # Search upwards for a mercurial or a git repository
-    cwd = os.getcwd()
-    return gitreview.scm.util.find_repo(cwd)
-
-
 def main(argv):
     ap, args = parse_args()
 
@@ -171,7 +152,7 @@ def main(argv):
                         format='%(asctime)s %(message)s')
 
     # Find the repository we are operating in
-    with find_repo(ap, args) as scm:
+    with gitreview.scm.util.find_repo(ap, args) as scm:
         gitreview.scm.util.resolve_commits(scm.repo, ap, args)
         if args.differential:
             try:

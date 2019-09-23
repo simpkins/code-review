@@ -10,7 +10,23 @@ from ..git.scm import GitAPI
 from ..hgapi.scm import HgAPI
 
 
-def find_repo(path):
+def find_repo(ap, args):
+    if args.git_dir is not None or args.work_tree is not None:
+        if args.hg_repo is not None:
+            ap.error('Cannot specify both a mercurial and a git repository')
+        repo = git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
+        return GitAPI(repo)
+
+    if args.hg_repo is not None:
+        repo = hgapi.Repository(args.hg_repo)
+        return HgAPI(repo)
+
+    # Search upwards for a mercurial or a git repository
+    cwd = os.getcwd()
+    return search_for_repo(cwd)
+
+
+def search_for_repo(path):
     ceiling_dirs = []
     if os.environ.has_key('GIT_CEILING_DIRECTORIES'):
         ceiling_dirs = os.environ['GIT_CEILING_DIRECTORIES'].split(':')
