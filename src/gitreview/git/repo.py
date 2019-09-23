@@ -710,3 +710,14 @@ class Repository(object):
         entries.extend(tree_entries.values())
         entries.sort(key = operator.attrgetter('name'))
         return entries
+
+    def expand_commit_name(self, name, aliases):
+        # Split apart the commit name from any suffix
+        commit_name, suffix = git_commit.split_rev_name(name)
+
+        try:
+            real_commit = aliases[commit_name]
+        except KeyError:
+            real_commit = commit_name
+
+        return real_commit + suffix

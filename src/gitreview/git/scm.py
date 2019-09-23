@@ -16,14 +16,3 @@ class GitAPI(ScmAPI):
 
     def __exit__(self, exc_type, exc_value, traceback):
         return
-
-    def expand_commit_name(self, name, aliases):
-        # Split apart the commit name from any suffix
-        commit_name, suffix = split_rev_name(name)
-
-        try:
-            real_commit = aliases[commit_name]
-        except KeyError:
-            real_commit = commit_name
-
-        return real_commit + suffix

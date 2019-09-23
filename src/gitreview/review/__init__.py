@@ -188,4 +188,4 @@ class Review(object):
       del self.commit_aliases[alias]
 
     def expand_commit_name(self, name):
-        return self.scm.expand_commit_name(name, self.commit_aliases)
+        return self.repo.expand_commit_name(name, self.commit_aliases)
