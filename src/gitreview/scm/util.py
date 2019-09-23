@@ -40,3 +40,77 @@ def find_repo(path):
             raise git.NotARepoError(initial_path)
 
         path = parent_dir
+
+
+def _resolve_commits_common(ap, args):
+    # Parse the commit arguments
+    if args.commit is not None:
+        # If --commit was specified, diff that commit against its parent
+        if args.differential is not None:
+            ap.error('--commit and --differential are mutually exclusive')
+        if args.cached:
+            ap.error('--commit and --cached are mutually exclusive')
+        if not (args.parent_commit is None and args.child_commit is None):
+            ap.error('additional commit arguments may not be specified '
+                     'with --commit')
+
+        args.parent_commit = args.commit + '^'
+        args.child_commit = args.commit
+        return True
+
+    if args.differential is not None:
+        # If --differential was specified,
+        # review that differential revision
+        if args.cached:
+            ap.error('--differential and --cached are mutually exclusive')
+        if not (args.parent_commit is None and args.child_commit is None):
+            ap.error('additional commit arguments may not be specified '
+                     'with --differential')
+        # We can't compute the parent and child commits now.
+        # The code will not use them if it sees that args.differential is
+        # set.
+        return True
+
+    return False
+
+
+def _resolve_commits_git(ap, args):
+    if args.cached:
+        # Diff HEAD or some other parent against the index
+        if args.child_commit is not None:
+            ap.error('cannot specify --cached with two commits')
+        args.child_commit = git.COMMIT_INDEX
+        if args.parent_commit is None:
+            args.parent_commit = git.COMMIT_HEAD
+        return
+
+    # If we are still here there were no special arguments.
+    # Just use the parent and child arguments.
+    # The child is the working directory, unless otherwise specified.
+    if args.child_commit is None:
+        args.child_commit = git.COMMIT_WD
+    # If neither child or parent is specified, diff the working
+    # directory against the index.
+    if args.parent_commit is None:
+        args.parent_commit = git.COMMIT_INDEX
+
+
+def _resolve_commits_hg(ap, args):
+    if args.cached:
+        ap.error('--cached is only supported in git repositories, '
+                 'not mercurial')
+
+    if args.child_commit is None:
+        args.child_commit = hgapi.COMMIT_WD
+    if args.parent_commit is None:
+        args.parent_commit = hgapi.COMMIT_HEAD
+
+
+def resolve_commits(repo, ap, args):
+    if _resolve_commits_common(ap, args):
+        return
+
+    if isinstance(repo, hgapi.Repository):
+        _resolve_commits_hg(ap, args)
+    else:
+        _resolve_commits_git(ap, args)
