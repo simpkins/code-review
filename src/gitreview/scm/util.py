@@ -5,12 +5,10 @@
 import os
 
 from .. import git
-from ..git.scm import GitAPI
 have_git_support = True
 
 try:
     from .. import hgapi
-    from ..hgapi.scm import HgAPI
     have_hg_support = True
 except ImportError:
     have_hg_support = False
@@ -22,14 +20,12 @@ def find_repo(ap, args):
             ap.error('Cannot specify both a mercurial and a git repository')
         if not have_git_support:
             ap.error('support for Git repositories is not available')
-        repo = git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
-        return GitAPI(repo)
+        return git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
 
     if args.hg_repo is not None:
         if not have_hg_support is not None:
             ap.error('support for Mercurial repositories is not available')
-        repo = hgapi.Repository(args.hg_repo)
-        return HgAPI(repo)
+        return hgapi.Repository(args.hg_repo)
 
     # Search upwards for a mercurial or a git repository
     cwd = os.getcwd()
@@ -55,16 +51,16 @@ def search_for_repo(path):
         # Check to see if this directory contains a .git file or directory
         ret = git.check_git_path(path)
         if ret is not None:
-            return GitAPI(git.get_repo(ret[0], ret[1]))
+            return git.get_repo(ret[0], ret[1])
 
         # Check to see if this directory looks like a git directory
         if git.is_git_dir(path):
-            return GitAPI(git.get_repo(path))
+            return git.get_repo(path)
 
         # Check to see if this directory contains a .hg directory
         if is_hg_repo(path):
             if have_hg_support:
-                return HgAPI(hgapi.Repository(path))
+                return hgapi.Repository(path)
             raise Exception("this looks like a Mercurial repository, "
                             "but Mercurial support is not available")
 

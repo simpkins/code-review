@@ -45,6 +45,12 @@ class Repository(object):
             if self.__gitCmdEnv.has_key('GIT_WORK_TREE'):
                 del(self.__gitCmdEnv['GIT_WORK_TREE'])
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return None
+
     def __str__(self):
         if self.workingDir:
             return self.workingDir

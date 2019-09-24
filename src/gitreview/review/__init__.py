@@ -75,9 +75,8 @@ def sort_reasonably(entries):
 
 
 class Review(object):
-    def __init__(self, scm, diff):
-        self.scm = scm
-        self.repo = scm.repo
+    def __init__(self, repo, diff):
+        self.repo = repo
         self.diff = diff
 
         self.commit_aliases = {}
