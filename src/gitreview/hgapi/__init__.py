@@ -459,10 +459,3 @@ class FakeCommit(object):
 
     def __str__(self):
         return self.node.hex()
-
-
-def is_hg_repo(path):
-    # Mercurial only checks if .hg exists and is a directory.
-    # The contents inside .hg may be quite different depending on the
-    # extensions being used.
-    return os.path.isdir(os.path.join(path, '.hg'))

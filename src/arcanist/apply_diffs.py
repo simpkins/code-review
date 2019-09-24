@@ -6,10 +6,14 @@ from .conduit import ArcanistConduitClient
 from .err import ConduitClientError, PatchFailedError
 from .working_copy import WorkingCopy, NoArcConfigError
 from . import revision
-from . import hg as arc_hg
 from . import git as arc_git
 
-from gitreview import hgapi
+try:
+    from . import hg as arc_hg
+    from gitreview import hgapi
+    have_hg_support = True
+except ImportError:
+    have_hg_support = False
 
 import os
 import logging
@@ -38,7 +42,7 @@ class _Applier(object):
 
         self.repo = repo
         self.arc_dir = WorkingCopy(os.getcwd())
-        if isinstance(repo, hgapi.Repository):
+        if have_hg_support and isinstance(repo, hgapi.Repository):
             self.arc_scm = arc_hg.ArcanistHg(repo)
         else:
             self.arc_scm = arc_git.ArcanistGit(repo)

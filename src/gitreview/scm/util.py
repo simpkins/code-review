@@ -5,25 +5,42 @@
 import os
 
 from .. import git
-from .. import hgapi
 from ..git.scm import GitAPI
-from ..hgapi.scm import HgAPI
+have_git_support = True
+
+try:
+    from .. import hgapi
+    from ..hgapi.scm import HgAPI
+    have_hg_support = True
+except ImportError:
+    have_hg_support = False
 
 
 def find_repo(ap, args):
     if args.git_dir is not None or args.work_tree is not None:
         if args.hg_repo is not None:
             ap.error('Cannot specify both a mercurial and a git repository')
+        if not have_git_support:
+            ap.error('support for Git repositories is not available')
         repo = git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
         return GitAPI(repo)
 
     if args.hg_repo is not None:
+        if not have_hg_support is not None:
+            ap.error('support for Mercurial repositories is not available')
         repo = hgapi.Repository(args.hg_repo)
         return HgAPI(repo)
 
     # Search upwards for a mercurial or a git repository
     cwd = os.getcwd()
     return search_for_repo(cwd)
+
+
+def is_hg_repo(path):
+    # Mercurial only checks if .hg exists and is a directory.
+    # The contents inside .hg may be quite different depending on the
+    # extensions being used.
+    return os.path.isdir(os.path.join(path, '.hg'))
 
 
 def search_for_repo(path):
@@ -40,17 +57,19 @@ def search_for_repo(path):
         if ret is not None:
             return GitAPI(git.get_repo(ret[0], ret[1]))
 
-        # Check to see if this directory contains a .hg directory
-        if hgapi.is_hg_repo(path):
-            return HgAPI(hgapi.Repository(path))
-
         # Check to see if this directory looks like a git directory
         if git.is_git_dir(path):
             return GitAPI(git.get_repo(path))
 
+        # Check to see if this directory contains a .hg directory
+        if is_hg_repo(path):
+            if have_hg_support:
+                return HgAPI(hgapi.Repository(path))
+            raise Exception("this looks like a Mercurial repository, "
+                            "but Mercurial support is not available")
+
         # If the parent_dir is one of the ceiling directories,
-        # we should stop before examining it.  The current directory
-        # does not appear to be inside a git repository.
+        # we should stop before examining it.
         parent_dir = os.path.dirname(path)
         if parent_dir in ceiling_dirs:
             raise git.NotARepoError(initial_path)
@@ -126,7 +145,7 @@ def resolve_commits(repo, ap, args):
     if _resolve_commits_common(ap, args):
         return
 
-    if isinstance(repo, hgapi.Repository):
+    if have_hg_support and isinstance(repo, hgapi.Repository):
         _resolve_commits_hg(ap, args)
     else:
         _resolve_commits_git(ap, args)
