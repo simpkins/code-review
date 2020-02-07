@@ -1,5 +1,4 @@
-#!/home/simpkins/bin/hg_debugpython
-#!/usr/bin/python -tt
+#!/usr/bin/python3 -tt
 #
 # Copyright 2009-2010 Facebook, Inc.
 #
