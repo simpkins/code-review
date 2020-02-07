@@ -20,6 +20,8 @@ import sys
 
 
 if sys.version_info[0] >= 3:
+    from abc import ABC
+
     def decodeutf8(value, errors="strict"):
         return value.decode("utf-8", errors=errors)
 
@@ -31,3 +33,6 @@ else:
 
     def readline(prompt):
         return raw_input(prompt)
+
+    class ABC(object):
+        pass

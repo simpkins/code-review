@@ -5,9 +5,16 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import sys
 
 from .. import git
 have_git_support = True
+
+if sys.version_info[0] >= 3:
+    from .. import eden
+    have_eden_support = True
+else:
+    have_eden_support = False
 
 try:
     from .. import hgapi
@@ -34,13 +41,6 @@ def find_repo(ap, args):
     return search_for_repo(cwd)
 
 
-def is_hg_repo(path):
-    # Mercurial only checks if .hg exists and is a directory.
-    # The contents inside .hg may be quite different depending on the
-    # extensions being used.
-    return os.path.isdir(os.path.join(path, '.hg'))
-
-
 def search_for_repo(path):
     ceiling_dirs = []
     ceiling_dirs_env = os.environ.get('GIT_CEILING_DIRECTORIES')
@@ -51,21 +51,9 @@ def search_for_repo(path):
     initial_path = path
     path = os.path.normpath(path)
     while True:
-        # Check to see if this directory contains a .git file or directory
-        ret = git.check_git_path(path)
-        if ret is not None:
-            return git.get_repo(ret[0], ret[1])
-
-        # Check to see if this directory looks like a git directory
-        if git.is_git_dir(path):
-            return git.get_repo(path)
-
-        # Check to see if this directory contains a .hg directory
-        if is_hg_repo(path):
-            if have_hg_support:
-                return hgapi.Repository(path)
-            raise Exception("this looks like a Mercurial repository, "
-                            "but Mercurial support is not available")
+        repo = _try_get_repo(path)
+        if repo is not None:
+            return repo
 
         # If the parent_dir is one of the ceiling directories,
         # we should stop before examining it.
@@ -74,6 +62,43 @@ def search_for_repo(path):
             raise git.NotARepoError(initial_path)
 
         path = parent_dir
+
+
+def _try_get_repo(path):
+    # Check to see if this directory contains a .git file or directory
+    ret = git.check_git_path(path)
+    if ret is not None:
+        return git.get_repo(ret[0], ret[1])
+
+    # Check to see if this directory looks like a git directory
+    if git.is_git_dir(path):
+        return git.get_repo(path)
+
+    # Check to see if this directory contains a .hg directory
+    #
+    # This could be either an EdenSCM repository (EdenSCM was originally based
+    # on Mercurial), or a pure Mercurial repository.
+    hg_dir = os.path.join(path, '.hg')
+    if os.path.isdir(hg_dir):
+        try:
+            with open(os.path.join(hg_dir, "requires"), "r") as f:
+                requirements = f.read().splitlines()
+        except EnvironmentError:
+            requirements = []
+
+        # All EdenSCM repositories generally list treestate and remotefilelog
+        # in their requirements.
+        if have_eden_support:
+            if "treestate" in requirements and "remotefilelog" in requirements:
+                return eden.Repository(path)
+
+        # Otherwise assume this is a vanilla Mercurial repository
+        if have_hg_support:
+            return hgapi.Repository(path)
+        raise Exception("this looks like a Mercurial repository, "
+                        "but Mercurial support is not available")
+
+    return None
 
 
 def _resolve_commits_common(ap, args):
