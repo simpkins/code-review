@@ -2,6 +2,8 @@
 #
 # Copyright 2004-present Facebook. All Rights Reserved.
 #
+from __future__ import absolute_import, division, print_function
+
 import os
 
 from .. import git
@@ -41,8 +43,9 @@ def is_hg_repo(path):
 
 def search_for_repo(path):
     ceiling_dirs = []
-    if os.environ.has_key('GIT_CEILING_DIRECTORIES'):
-        ceiling_dirs = os.environ['GIT_CEILING_DIRECTORIES'].split(':')
+    ceiling_dirs_env = os.environ.get('GIT_CEILING_DIRECTORIES')
+    if ceiling_dirs_env:
+        ceiling_dirs = ceiling_dirs_env.split(':')
     ceiling_dirs.append(os.path.sep) # Add the root directory
 
     initial_path = path

@@ -14,15 +14,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import absolute_import, division, print_function
+
 import datetime
 import os
 import time
 
 import gitreview.proc as proc
 
-from exceptions import *
-import constants
-import obj as git_obj
+from .exceptions import *
+from . import constants
+from . import obj as git_obj
 
 
 class GitTimezone(datetime.tzinfo):

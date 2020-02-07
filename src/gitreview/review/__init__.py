@@ -14,13 +14,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import absolute_import, division, print_function
+
 import os
 import tempfile
 
 import gitreview.git as git
 
-from exceptions import *
-import cli_reviewer
+from .exceptions import *
+from . import cli_reviewer
 
 CliReviewer = cli_reviewer.CliReviewer
 
@@ -142,7 +144,7 @@ class Review(object):
 
         try:
             return TmpFile(self.repo, expanded_commit, path)
-        except (git.NoSuchBlobError, git.NotABlobError), ex:
+        except (git.NoSuchBlobError, git.NotABlobError) as ex:
             # For user-friendliness,
             # change the name in the exception to the unexpanded name
             ex.name = '%s:%s' % (commit, path)

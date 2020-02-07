@@ -14,13 +14,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import absolute_import, division, print_function
+
 import os
 import subprocess
 
 import gitreview.cli as cli
 import gitreview.git as git
 
-from exceptions import *
+from .exceptions import *
 
 
 class FileIndexArgument(cli.Argument):
@@ -397,23 +399,23 @@ class DiffCommand(cli.ArgCommand):
     def run_parsed(self, cli_obj, name, args):
         try:
             files = self.__getDiffFiles(cli_obj, args)
-        except NoCurrentEntryError, ex:
+        except NoCurrentEntryError as ex:
             cli_obj.output_error(ex)
             return 1
-        except git.NoSuchBlobError, ex:
+        except git.NoSuchBlobError as ex:
             # Convert the "blob" error message to "file", just to be more
             # user-friendly for developers who aren't familiar with git
             # terminology.
             cli_obj.output_error('no such file %r' % (ex.name,))
             return 1
-        except git.NotABlobError, ex:
+        except git.NotABlobError as ex:
             cli_obj.output_error('not a file %r' % (ex.name,))
             return 1
 
         cmd = cli_obj.get_diff_command(*files)
         try:
             p = subprocess.Popen(cmd, close_fds=True)
-        except OSError, ex:
+        except OSError as ex:
             cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
             return 1
 
@@ -434,7 +436,7 @@ class ViewCommand(cli.ArgCommand):
             # If no path was specified, pick the path from the current entry
             try:
                 current_entry = cli_obj.review.get_current_entry()
-            except NoCurrentEntryError, ex:
+            except NoCurrentEntryError as ex:
                 cli_obj.output_error(ex)
                 return 1
 
@@ -451,20 +453,20 @@ class ViewCommand(cli.ArgCommand):
 
         try:
             file = cli_obj.review.get_file(commit, path)
-        except git.NoSuchBlobError, ex:
+        except git.NoSuchBlobError as ex:
             # Convert the "blob" error message to "file", just to be more
             # user-friendly for developers who aren't familiar with git
             # terminology.
             cli_obj.output_error('no such file %r' % (ex.name,))
             return 1
-        except git.NotABlobError, ex:
+        except git.NotABlobError as ex:
             cli_obj.output_error('not a file %r' % (ex.name,))
             return 1
 
         cmd = cli_obj.get_view_command(file)
         try:
             p = subprocess.Popen(cmd, close_fds=True)
-        except OSError, ex:
+        except OSError as ex:
             cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
             return 1
 
@@ -499,7 +501,7 @@ class AliasCommand(cli.ArgCommand):
             # Set the specified alias
             try:
                 cli_obj.review.set_commit_alias(args.alias, args.commit)
-            except git.NoSuchObjectError, ex:
+            except git.NoSuchObjectError as ex:
                 cli_obj.output_error(ex)
                 return 1
 
@@ -582,48 +584,47 @@ class CliReviewer(cli.CLI):
     def configure_commands(self):
         # TODO: It would be nice to support a ~/.gitreviewrc file, too, or
         # maybe even storing configuration via git-config.
+        self.view_command = self._get_viewer_cmd()
+        self.diff_command = self._get_diff_cmd()
 
+    def _get_viewer_cmd(self):
         # Check the following environment variables
         # to see which program we should use to view files.
-        viewer_str = None
-        if os.environ.has_key('CODE_REVIEW_VIEW'):
-            viewer_str = os.environ['CODE_REVIEW_VIEW']
-        elif os.environ.has_key('GIT_REVIEW_VIEW'):
-            viewer_str = os.environ['GIT_REVIEW_VIEW']
-        elif os.environ.has_key('GIT_EDITOR'):
-            viewer_str = os.environ['GIT_EDITOR']
-        elif os.environ.has_key('VISUAL'):
-            viewer_str = os.environ['VISUAL']
-        elif os.environ.has_key('EDITOR'):
-            viewer_str = os.environ['EDITOR']
+        env_vars = (
+            'CODE_REVIEW_VIEW',
+            'GIT_REVIEW_VIEW',
+            'GIT_EDITOR',
+            'VISUAL',
+            'EDITOR'
+        )
+        for var_name in env_vars:
+            value = os.environ.get(var_name)
+            if value:
+                tokenizer = cli.tokenize.SimpleTokenizer(value)
+                return tokenizer.get_tokens()
 
-        if viewer_str is None:
-            self.view_command = ['vi']
-        else:
-            tokenizer = cli.tokenize.SimpleTokenizer(viewer_str)
-            self.view_command = tokenizer.get_tokens()
+        return ['vi']
 
+    def _get_diff_cmd(self):
         # Check the following environment variables
         # to see which program we should use to view files.
-        if os.environ.has_key('CODE_REVIEW_DIFF'):
-            diff_str = os.environ['CODE_REVIEW_DIFF']
-            tokenizer = cli.tokenize.SimpleTokenizer(diff_str)
-            self.diff_command = tokenizer.get_tokens()
-        elif os.environ.has_key('GIT_REVIEW_DIFF'):
-            diff_str = os.environ['GIT_REVIEW_DIFF']
-            tokenizer = cli.tokenize.SimpleTokenizer(diff_str)
-            self.diff_command = tokenizer.get_tokens()
-        elif os.environ.has_key('DISPLAY'):
+        for var_name in ('CODE_REVIEW_DIFF', 'GIT_REVIEW_DIFF'):
+            env_var = os.environ.get(var_name)
+            if env_var:
+                tokenizer = cli.tokenize.SimpleTokenizer(env_var)
+                return tokenizer.get_tokens()
+
+        if os.environ.has_key('DISPLAY'):
             # If the user appears to be using X, default to tkdiff
-            self.diff_command = ['tkdiff']
-        else:
-            # vimdiff is very convenient for viewing
-            # side-by-side diffs in a terminal.
-            #
-            # We could default to plain old 'diff' if people don't like
-            # vimdiff.  However, I figure most people will configure their
-            # preferred diff program with CODE_REVIEW_DIFF.
-            self.diff_command = ['vimdiff', '-R']
+            return ['tkdiff']
+
+        # vimdiff is very convenient for viewing
+        # side-by-side diffs in a terminal.
+        #
+        # We could default to plain old 'diff' if people don't like
+        # vimdiff.  However, I figure most people will configure their
+        # preferred diff program with CODE_REVIEW_DIFF.
+        return ['vimdiff', '-R']
 
     def invoke_command(self, cmd_name, args, line):
         # Before every command, clear our repository cache
@@ -770,7 +771,7 @@ class CliReviewer(cli.CLI):
         matches = []
         try:
             tree_entries = self.repo_cache.list_tree(commit, dirname)
-        except OSError, ex:
+        except OSError as ex:
             return []
 
         for entry in tree_entries:

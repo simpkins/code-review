@@ -14,15 +14,21 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import absolute_import, division, print_function
+
 import hashlib
-import httplib
 import json
 import socket
 import sys
 import time
 import urllib
 
-from urlparse import urlparse
+try:
+    from http.client import HTTPConnection, HTTPSConnection
+    from urllib.parse import urlparse
+except ImportError:
+    from httplib import HTTPConnection, HTTPSConnection
+    from urlparse import urlparse
 
 from .err import ConduitClientError
 
@@ -61,12 +67,12 @@ class ConduitClient(object):
             # TODO: httplib.HTTPSConnection doesn't validate the server's
             # certificate.  (Starting in python 3.2 cert validation is
             # built-in.)
-            self.connection_class = httplib.HTTPSConnection
+            self.connection_class = HTTPSConnection
             if self.port is None:
                 self.port = 443
         elif self.scheme == 'http':
             # TODO: should we just refuse to ever use plain HTTP?
-            self.connection_class = httplib.HTTPConnection
+            self.connection_class = HTTPConnection
             self.port = 80
         else:
             raise Exception('unsupported conduit scheme "%s"' % (self.scheme,))

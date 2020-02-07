@@ -14,10 +14,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import absolute_import, division, print_function
+
 import gitreview.proc as proc
 
-from exceptions import *
-import constants
+import pycompat
+from .exceptions import *
+from . import constants
 
 
 class Config(object):
@@ -77,17 +80,16 @@ class Config(object):
         self.__contents[name] = [value]
 
     def add(self, name, value):
-        if self.__contents.has_key(name):
+        if name in self.__contents:
             self.__contents[name].append(value)
         else:
             self.__contents[name] = [value]
 
 
-
 def parse(config_output):
     config = Config()
 
-    lines = config_output.split('\n')
+    lines = pycompat.decodeutf8(config_output).split('\n')
     for line in lines:
         if not line:
             continue

@@ -18,8 +18,12 @@
 Utility wrapper functions around Python's subprocess module.
 """
 
+from __future__ import absolute_import, division, print_function
+
 import subprocess
 import types
+
+import pycompat
 
 PIPE = subprocess.PIPE
 STDOUT = subprocess.STDOUT
@@ -50,7 +54,8 @@ class CmdFailedError(ProcError):
     def __init__(self, args, msg, cmd_err=None):
         msg = 'command %s %s' % (args, msg)
         if cmd_err:
-            indented_err = '  ' + '\n  '.join(cmd_err.splitlines())
+            err_str = pycompat.decodeutf8(cmd_err, errors="replace")
+            indented_err = '  ' + '\n  '.join(err_str.splitlines())
             msg = msg + '\nstderr:\n' + indented_err
         ProcError.__init__(self, msg)
         # Note: don't call this self.args
@@ -118,12 +123,12 @@ def popen_cmd(args, cwd=None, env=None, stdin='/dev/null',
     Wrapper around subprocess.Popen() that also accepts filenames
     for stdin/stdout/stderr.
     """
-    if isinstance(stdin, types.StringTypes):
-        stdin = file(stdin, 'r')
-    if isinstance(stdout, types.StringTypes):
-        stdout = file(stdout, 'w')
-    if isinstance(stderr, types.StringTypes):
-        stderr = file(stderr, 'w')
+    if isinstance(stdin, str):
+        stdin = open(stdin, 'r')
+    if isinstance(stdout, str):
+        stdout = open(stdout, 'w')
+    if isinstance(stderr, str):
+        stderr = open(stderr, 'w')
 
     # close_fds=True is always a good thing
     p = subprocess.Popen(args, stdin=stdin, stdout=stdout, stderr=stderr,
@@ -194,7 +199,7 @@ def run_oneline_cmd(args, cwd=None, env=None):
         msg = 'did not print any output'
         raise CmdFailedError(args, msg)
 
-    lines = cmd_out.split('\n')
+    lines = cmd_out.split(b'\n')
     num_lines = len(lines)
     if num_lines < 2:
         # XXX: It would be nice to include cmd_out in the exception

@@ -1,6 +1,6 @@
-#!/usr/local/bin/python -tt
+#!/usr/bin/python -tt
 #
-# Copyright 2011 Facebook, Inc.
+# Copyright (c) Facebook, Inc. and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -16,22 +16,18 @@
 #
 from __future__ import absolute_import, division, print_function
 
-import os
-import pwd
-
-from .config import ArcConfig
+import sys
 
 
-def get_homedir():
-    try:
-        return os.environ['HOME']
-    except KeyError:
-        pass
+if sys.version_info[0] >= 3:
+    def decodeutf8(value, errors="strict"):
+        return value.decode("utf-8", errors=errors)
 
-    pwent = pwd.getpwuid(os.getuid())
-    return pwent.pw_dir
+    def readline(prompt):
+        return input(prompt)
+else:
+    def decodeutf8(value, errors="strict"):
+        return value
 
-
-def load_arcrc():
-    arcrc_path = os.path.join(get_homedir(), '.arcrc')
-    return ArcConfig(arcrc_path, default={})
+    def readline(prompt):
+        return raw_input(prompt)

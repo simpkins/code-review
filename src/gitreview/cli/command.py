@@ -14,7 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
-from exceptions import *
+from __future__ import absolute_import, division, print_function
+
+from .exceptions import *
 
 
 class Command(object):
@@ -39,7 +41,7 @@ class HelpCommand(Command):
             try:
                 cmd = cli_obj.get_command(cmd_name)
                 cmd.help(cli_obj, cmd_name, args[1:], line)
-            except (NoSuchCommandError, AmbiguousCommandError), ex:
+            except (NoSuchCommandError, AmbiguousCommandError) as ex:
                 cli_obj.output_error(ex)
 
     def help(self, cli_obj, name, args, line):

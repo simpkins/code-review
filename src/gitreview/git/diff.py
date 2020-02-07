@@ -14,13 +14,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import absolute_import, division, print_function
+
 import re
-import UserDict
 
 import gitreview.proc as proc
+import pycompat
 
-from exceptions import *
-import constants
+from .exceptions import *
+from . import constants
 
 
 class Status(object):
@@ -35,23 +37,23 @@ class Status(object):
 
     def __init__(self, str_value):
         self.similarityIndex = None
-        if str_value == 'A':
+        if str_value == b'A':
             self.status = self.ADDED
-        elif str_value.startswith('C'):
+        elif str_value.startswith(b'C'):
             self.status = self.COPIED
             if len(str_value) > 1:
                 self.similarityIndex = self.__parseSimIndex(str_value[1:])
-        elif str_value == 'D':
+        elif str_value == b'D':
             self.status = self.DELETED
-        elif str_value == 'M':
+        elif str_value == b'M':
             self.status = self.MODIFIED
-        elif str_value.startswith('R'):
+        elif str_value.startswith(b'R'):
             self.status = self.RENAMED
             if len(str_value) > 1:
                 self.similarityIndex = self.__parseSimIndex(str_value[1:])
-        elif str_value == 'T':
+        elif str_value == b'T':
             self.status = self.TYPE_CHANGED
-        elif str_value == 'U':
+        elif str_value == b'U':
             self.status = self.UNMERGED
         else:
             raise ValueError('unknown status type %r' % (str_value))
@@ -109,8 +111,11 @@ class Status(object):
 class BlobInfo(object):
     """Info about a git blob"""
     def __init__(self, sha1, path, mode):
-        self.sha1 = sha1
-        self.path = path
+        self.sha1 = pycompat.decodeutf8(sha1)
+        self.path = (
+            None if path is None else
+            pycompat.decodeutf8(path, errors="surrogateescape")
+        )
         self.mode = mode
 
 
@@ -155,7 +160,7 @@ class DiffEntry(object):
         return self.old.path
 
 
-class DiffFileList(UserDict.DictMixin):
+class DiffFileList(object):
     def __init__(self, parent, child):
         self.parent = parent
         self.child = child
@@ -163,7 +168,7 @@ class DiffFileList(UserDict.DictMixin):
 
     def add(self, entry):
         path = entry.getPath()
-        if self.entries.has_key(path):
+        if path in self.entries:
             # For unmerged files, "git diff --raw" will output a "U"
             # line, with the SHA1 IDs set to all 0.
             # Depending on how the file was changed, it will usually also
@@ -205,13 +210,13 @@ class DiffFileList(UserDict.DictMixin):
     def __iter__(self):
         # By default, iterate over the values instead of the keys
         # XXX: This violates the standard pythonic dict-like behavior
-        return self.entries.itervalues()
+        return iter(self.entries.values())
 
-    def iterkeys(self):
-        # UserDict.DictMixin implements iterkeys() using __iter__
-        # Our __iter__ implementation iterates over values, though,
-        # so we need to redefine iterkeys()
-        return self.entries.iterkeys()
+    def keys(self):
+        return self.entries.keys()
+
+    def values(self):
+        return self.entries.values()
 
     def __len__(self):
         return len(self.entries)
@@ -260,7 +265,7 @@ def get_diff_list(repo, parent, child, paths=None):
 
     if commit_args == None or path_args == None:
         # No diffs
-        out = ''
+        out = b''
     else:
         # XXX: git seems to have some weird interactions between the
         # -M and -C arguments.  "-M -C" works fairly well, while "-C" by
@@ -271,14 +276,14 @@ def get_diff_list(repo, parent, child, paths=None):
                 commit_args + ['--'] + path_args
         try:
             out = repo.runSimpleGitCmd(cmd)
-        except proc.CmdFailedError, ex:
-            match = re.search("bad revision '(.*)'\n", ex.stderr)
+        except proc.CmdFailedError as ex:
+            match = re.search(b"bad revision '(.*)'\n", ex.stderr)
             if match:
                 bad_rev = match.group(1)
                 raise NoSuchCommitError(bad_rev)
             raise
 
-    fields = out.split('\0')
+    fields = out.split(b'\0')
     # When the diff is non-empty, it will have a terminating '\0'
     # Remove the empty field after the last '\0'
     if fields and not fields[-1]:
@@ -291,14 +296,14 @@ def get_diff_list(repo, parent, child, paths=None):
     while n < num_fields:
         field = fields[n]
         # The field should start with ':'
-        if not field or field[0] != ':':
+        if not field.startswith(b':'):
             msg = 'unexpected output from git diff: ' \
                     'missing : at start of field %d (%r)' % \
                     (n, field)
             raise GitError(msg)
 
         # Split the field into its components
-        parts = field.split(' ')
+        parts = field.split(b' ')
         try:
             (old_mode_str, new_mode_str,
              old_sha1, new_sha1, status_str) = parts

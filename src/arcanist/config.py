@@ -14,7 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 import codecs
 import errno
@@ -92,7 +92,7 @@ class ArcConfig(ArcConfigDict):
     def _load(self, path, default):
         try:
             f = codecs.open(path, 'r', encoding='utf-8')
-        except IOError, ex:
+        except IOError as ex:
             if ex.errno == errno.ENOENT:
                 if default is None:
                     raise NoConfigError(path)

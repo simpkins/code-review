@@ -14,17 +14,20 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import absolute_import, division, print_function
+
 import readline
 import sys
 import traceback
 
-from exceptions import *
-import tokenize
+import pycompat
+from .exceptions import *
+from . import tokenize
 
 # Import everything from our command and args submodules
 # into the top-level namespace
-from command import *
-from args import *
+from .command import *
+from .args import *
 
 
 class CLI(object):
@@ -62,7 +65,7 @@ class CLI(object):
         self._old_completer = None
 
     def add_command(self, name, command):
-        if self.commands.has_key(name):
+        if name in self.commands:
             raise KeyError('command %r already exists' % (name,))
         self.commands[name] = command
 
@@ -106,7 +109,7 @@ class CLI(object):
 
     def readline(self):
         try:
-            return raw_input(self.prompt)
+            return pycompat.readline(self.prompt)
         except EOFError:
             return None
 
@@ -167,9 +170,9 @@ class CLI(object):
     def invoke_command(self, cmd_name, args, line):
         try:
             cmd_entry = self.get_command(cmd_name)
-        except NoSuchCommandError, ex:
+        except NoSuchCommandError as ex:
             return self.handle_unknown_command(cmd_name)
-        except AmbiguousCommandError, ex:
+        except AmbiguousCommandError as ex:
             return self.handle_ambiguous_command(cmd_name, ex.matches)
 
         try:
@@ -255,7 +258,7 @@ class CLI(object):
         else:
             try:
                 command = self.get_command(cmd_name)
-            except (NoSuchCommandError, AmbiguousCommandError), ex:
+            except (NoSuchCommandError, AmbiguousCommandError) as ex:
                 # Not a valid command.  No matches
                 return None
 

@@ -14,6 +14,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import absolute_import, division, print_function
+
 import operator
 import os
 import stat
@@ -21,12 +23,10 @@ import subprocess
 import tempfile
 
 import gitreview.proc as proc
+import pycompat
 
-from exceptions import *
-import constants
-import commit as git_commit
-import diff as git_diff
-import obj as git_obj
+from .exceptions import *
+from . import constants, commit as git_commit, diff as git_diff, obj as git_obj
 
 
 class Repository(object):
@@ -204,12 +204,12 @@ class Repository(object):
         cmd.append('--')
         try:
             sha1 = self.runOnelineCmd(cmd)
-        except proc.CmdFailedError, ex:
+        except proc.CmdFailedError as ex:
             if (ex.stderr.find('unknown revision') >= 0 or
                 ex.stderr.find('bad revision')):
                 raise NoSuchCommitError(name)
             raise
-        return sha1
+        return pycompat.decodeutf8(sha1)
 
     def getSha1(self, name):
         """
@@ -221,7 +221,7 @@ class Repository(object):
         cmd = ['rev-parse', '--verify', name]
         try:
             sha1 = self.runOnelineCmd(cmd)
-        except proc.CmdFailedError, ex:
+        except proc.CmdFailedError as ex:
             if ex.stderr.find('Needed a single revision') >= 0:
                 raise NoSuchObjectError(name)
             raise
@@ -231,7 +231,7 @@ class Repository(object):
         cmd = ['cat-file', '-t', name]
         try:
             return self.runOnelineCmd(cmd)
-        except proc.CmdExitCodeError, ex:
+        except proc.CmdExitCodeError as ex:
             if ex.stderr.find('Not a valid object name') >= 0:
                 raise NoSuchObjectError(name)
             raise
@@ -307,7 +307,7 @@ class Repository(object):
         cmd = ['cat-file', 'blob', name]
         try:
             out = self.runSimpleGitCmd(cmd, stdout=stdout)
-        except proc.CmdFailedError, ex:
+        except proc.CmdFailedError as ex:
             if ex.stderr.find('Not a valid object name') >= 0:
                 raise NoSuchBlobError(name)
             elif ex.stderr.find('bad file') >= 0:
@@ -455,7 +455,7 @@ class Repository(object):
         # Run the apply patch command
         try:
             self.runCmdWithInput(args, input=patch, extra_env=extra_env)
-        except proc.CmdExitCodeError, ex:
+        except proc.CmdExitCodeError as ex:
             # If the patch failed to apply, re-raise the error as a
             # PatchFailedError.
             if (ex.stderr.find('patch does not apply') >= 0 or
@@ -685,7 +685,7 @@ class Repository(object):
                 # Add an tree entry for the subdirectory, if we don't already
                 # have one.
                 name = ie.path[:sep_idx]
-                mode = 040000
+                mode = 0o40000
                 type = 'tree'
                 # There are no tree objects for the index.
                 # If the caller really wants tree objects, we could

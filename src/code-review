@@ -35,6 +35,8 @@ Configuration:
   to view new files.  If none of these are set, vi is used.
 """
 
+from __future__ import absolute_import, division, print_function
+
 import argparse
 import logging
 import os
@@ -113,7 +115,7 @@ def setup_phabricator_review(repo, options):
     except ValueError:
         raise NoSuchRevisionError(rev_id_str)
 
-    print 'Checking for diffs from revision %s' % (rev_id,)
+    print('Checking for diffs from revision %s' % (rev_id,))
 
     return setup_phabricator_review_impl(repo, options, rev_id)
 
@@ -159,7 +161,7 @@ def main(argv):
             try:
                 rev = setup_phabricator_review(repo, args)
             except (NoSuchRevisionError, git.PatchFailedError,
-                    NoDiffsError), ex:
+                    NoDiffsError) as ex:
                 sys.stderr.write('%s: error: %s\n' % (f_progname, ex))
                 return RETCODE_PHABRICATOR_ERROR
         else:

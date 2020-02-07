@@ -18,6 +18,8 @@
 This is a python package for interacting with git repositories.
 """
 
+from __future__ import absolute_import, division, print_function
+
 import errno
 import os
 import re
@@ -45,9 +47,8 @@ def is_git_dir(path):
     # This is normally a directory called "objects" inside the git directory,
     # but it can be overridden with the GIT_OBJECT_DIRECTORY environment
     # variable.
-    if os.environ.has_key('GIT_OBJECT_DIRECTORY'):
-        object_dir = os.environ['GIT_OBJECT_DIRECTORY']
-    else:
+    object_dir = os.environ.get('GIT_OBJECT_DIRECTORY')
+    if object_dir is None:
         object_dir = os.path.join(path, 'objects')
     if not os.path.isdir(object_dir):
         return False

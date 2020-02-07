@@ -2,6 +2,8 @@
 #
 # Copyright (c) 2009-present Facebook.  All rights reserved.
 #
+from __future__ import absolute_import, division, print_function
+
 import gitreview.git as git
 
 
@@ -86,7 +88,7 @@ def get_phabricator_commit_chain(repo, rev_id, ref_name=None):
     # Attempt to parse the differential information from the commit message
     try:
         dc_commit = DifferentialCommit(commit)
-    except NotADifferentialCommit, ex:
+    except NotADifferentialCommit as ex:
         # Hmm.  The head of a refs/phabricator/<NNN> ref really should
         # be a differential commit.  Just re-raise the NotADifferentialCommit
         # as-is.

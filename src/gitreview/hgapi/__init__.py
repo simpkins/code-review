@@ -167,31 +167,31 @@ class Repository(object):
 
         def process_entry(path, old_path):
             if old_path is None:
-                status = Status('A')
-                old_mode = '0000'
-                old_sha1 = '0000'  # dummy value
+                status = Status(b'A')
+                old_mode = b'0000'
+                old_sha1 = b'0000'  # dummy value
             else:
-                status = Status('M')
-                old_mode = '0644'  # TODO: get the correct mode data
-                old_sha1 = '1234'  # dummy value
+                status = Status(b'M')
+                old_mode = b'0644'  # TODO: get the correct mode data
+                old_sha1 = b'1234'  # dummy value
 
             if child_node is not None:
                 rename_info = child_node[path].renamed()
-                new_sha1 = '5678'  # TODO: get the filectx ID
+                new_sha1 = b'5678'  # TODO: get the filectx ID
             else:
                 # TODO: get rename info for working directory changes
                 # TODO: use a workingctx() object
                 rename_info = None
-                new_sha1 = '5678'  # TODO
+                new_sha1 = b'5678'  # TODO
 
             if rename_info:
-                status = Status('R')
+                status = Status(b'R')
                 old_path = rename_info[0]
                 old_paths.add(old_path)
-                old_mode = '0644'  # TODO: get the correct mode data
-                old_sha1 = '1234'  # dummy value
+                old_mode = b'0644'  # TODO: get the correct mode data
+                old_sha1 = b'1234'  # dummy value
 
-            new_mode = '0644'  # TODO: get the correct mode value
+            new_mode = b'0644'  # TODO: get the correct mode value
 
             entry = DiffEntry(old_mode, new_mode, old_sha1, new_sha1, status,
                               old_path, path)
@@ -208,7 +208,7 @@ class Repository(object):
                 # This path was moved away from, and we already added
                 # a DiffEntry for it above.
                 continue
-            entry = DiffEntry('0644', '0000', '1234', '0000', Status('D'),
+            entry = DiffEntry('0644', '0000', '1234', '0000', Status(b'D'),
                               path, None)
             entries.add(entry)
 
