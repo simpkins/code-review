@@ -15,12 +15,13 @@
 # under the License.
 #
 """
-git-review - a tool to review changes in a git repository
+code-review - a tool to review changes in a source control repository
 
-This tool provides an interactive shell for reviewing diffs in a git
-repository.  It accepts arguments similar to "git diff" for specifying the
-diffs to review.  When started, it walks the user through each file changed,
-prompting to open an external diff program or text editor for each file.
+This tool provides an interactive shell for reviewing diffs in a Git,
+Mercurial, or EdenSCM repository.  It accepts arguments similar to "git diff"
+for specifying the diffs to review.  When started, it walks the user through
+each file changed, prompting to open an external diff program or text editor
+for each file.
 
 Configuration:
 
