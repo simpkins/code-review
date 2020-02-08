@@ -14,7 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
-from __future__ import absolute_import, division, print_function
+from pathlib import Path
 
 import scmreview.proc as proc
 
@@ -85,7 +85,7 @@ class Config(object):
             self.__contents[name] = [value]
 
 
-def parse(config_output):
+def parse(config_output: bytes) -> Config:
     config = Config()
 
     lines = config_output.decode("utf-8").split('\n')
@@ -98,29 +98,29 @@ def parse(config_output):
     return config
 
 
-def _load(where):
+def _load(where: str) -> Config:
     cmd = [constants.GIT_EXE, where, 'config', '--list']
     cmd_out = proc.run_simple_cmd(cmd)
     return parse(cmd_out)
 
 
-def load(git_dir):
+def load(git_dir: Path) -> Config:
     # This will return the merged configuration from the specified repository,
     # as well as the user's global config and the system config
     where = '--git-dir=' + str(git_dir)
     return _load(where)
 
 
-def load_file(path):
+def load_file(path: Path) -> Config:
     where = '--file=' + str(path)
     return _load(where)
 
 
-def load_global(path):
+def load_global() -> Config:
     where = '--global'
     return _load(where)
 
 
-def load_system(path):
+def load_system() -> Config:
     where = '--system'
     return _load(where)

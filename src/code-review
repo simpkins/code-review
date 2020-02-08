@@ -35,12 +35,11 @@ Configuration:
   to view new files.  If none of these are set, vi is used.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import argparse
 import logging
 import os
 import sys
+from pathlib import Path
 
 import scmreview.git as git
 import scmreview.review as review
@@ -76,18 +75,10 @@ def parse_args():
     ap.add_argument('--cached',
                     action='store_true', dest='cached', default=False,
                     help='Diff against the index instead of the working tree')
-    ap.add_argument('--git-dir',
-                    action='store', dest='git_dir',
+    ap.add_argument('--repo',
+                    action='store', dest='repo',
                     metavar='DIRECTORY', default=None,
-                    help='Path to the git repository directory')
-    ap.add_argument('--work-tree',
-                    action='store', dest='work_tree',
-                    metavar='DIRECTORY', default=None,
-                    help='Path to the git repository working tree')
-    ap.add_argument('--hg-repo',
-                    action='store', dest='hg_repo',
-                    metavar='DIRECTORY', default=None,
-                    help='Path to the mercurial repository')
+                    help='Path to the source control repository')
     ap.add_argument('-?', '--help',
                     action='help', help='Print this help message and exit')
     ap.add_argument('parent_commit',
@@ -154,8 +145,14 @@ def main(argv) -> int:
     logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
                         format='%(asctime)s %(message)s')
 
+    start_path = Path.cwd() if args.repo is None else Path(args.repo)
+    repo = scmreview.scm.util.find_repo(start_path)
+    if repo is None:
+        ap.error(f"unable to find a repository at {start_path}")
+        return RETCODE_ARGUMENTS_ERROR
+
     # Find the repository we are operating in
-    with scmreview.scm.util.find_repo(ap, args) as repo:
+    with repo:
         scmreview.scm.util.resolve_commits(repo, ap, args)
         if args.differential:
             try:

@@ -14,22 +14,30 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
-from __future__ import absolute_import, division, print_function
-
 import operator
 import os
 import stat
 import subprocess
 import tempfile
+from pathlib import Path
 
 import scmreview.proc as proc
 
+from scmreview.scm.repo import RepositoryBase
 from .exceptions import *
-from . import constants, commit as git_commit, diff as git_diff, obj as git_obj
+from . import (
+    constants,
+    commit as git_commit,
+    config as config_mod,
+    diff as git_diff,
+    obj as git_obj
+)
 
 
-class Repository(object):
-    def __init__(self, git_dir, working_dir, config):
+class Repository(RepositoryBase):
+    def __init__(
+        self, git_dir: Path, working_dir: Path, config: config_mod.Config
+    ) -> None:
         self.gitDir = git_dir
         self.workingDir = working_dir
         self.config = config

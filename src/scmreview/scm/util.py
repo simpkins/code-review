@@ -15,42 +15,24 @@
 # under the License.
 #
 import os
+from pathlib import Path
+from typing import Optional
 
 from .repo import RepositoryBase
 from .. import eden, git
-have_git_support = True
 
 # from .. import hgapi
 have_hg_support = False
 
 
-def find_repo(ap, args) -> RepositoryBase:
-    if args.git_dir is not None or args.work_tree is not None:
-        if args.hg_repo is not None:
-            ap.error('Cannot specify both a mercurial and a git repository')
-        if not have_git_support:
-            ap.error('support for Git repositories is not available')
-        return git.get_repo(git_dir=args.git_dir, working_dir=args.work_tree)
-
-    if args.hg_repo is not None:
-        if not have_hg_support is not None:
-            ap.error('support for Mercurial repositories is not available')
-        return hgapi.Repository(args.hg_repo)
-
-    # Search upwards for a mercurial or a git repository
-    cwd = os.getcwd()
-    return search_for_repo(cwd)
-
-
-def search_for_repo(path):
-    ceiling_dirs = []
+def find_repo(path: Path) -> Optional[RepositoryBase]:
+    ceiling_dirs = [Path(os.path.sep)]
     ceiling_dirs_env = os.environ.get('GIT_CEILING_DIRECTORIES')
     if ceiling_dirs_env:
-        ceiling_dirs = ceiling_dirs_env.split(':')
-    ceiling_dirs.append(os.path.sep) # Add the root directory
+        ceiling_dirs.extend(Path(p) for p in ceiling_dirs_env.split(':'))
 
     initial_path = path
-    path = os.path.normpath(path)
+    path = path.resolve(strict=False)
     while True:
         repo = _try_get_repo(path)
         if repo is not None:
@@ -58,14 +40,14 @@ def search_for_repo(path):
 
         # If the parent_dir is one of the ceiling directories,
         # we should stop before examining it.
-        parent_dir = os.path.dirname(path)
+        parent_dir = path.parent
         if parent_dir in ceiling_dirs:
-            raise git.NotARepoError(initial_path)
+            return None
 
         path = parent_dir
 
 
-def _try_get_repo(path):
+def _try_get_repo(path: Path) -> Optional[RepositoryBase]:
     # Check to see if this directory contains a .git file or directory
     ret = git.check_git_path(path)
     if ret is not None:

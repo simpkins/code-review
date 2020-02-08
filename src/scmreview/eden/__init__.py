@@ -18,6 +18,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import subprocess
+from pathlib import Path
 from typing import Set
 
 from scmreview.scm.repo import RepositoryBase
@@ -25,7 +26,7 @@ from ..git.diff import BlobInfo, DiffFileList, DiffEntry, Status
 
 
 class Repository(RepositoryBase):
-    def __init__(self, path) -> None:
+    def __init__(self, path: Path) -> None:
         self.path = path
         self.eden_cmd = ['hg']
         self.env = os.environ.copy()
