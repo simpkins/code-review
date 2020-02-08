@@ -1,5 +1,6 @@
 *.pyc
 *.pyo
+.mypy_cache
 
 # The /build directory is created by setup.py
 /build
