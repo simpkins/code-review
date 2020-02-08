@@ -19,7 +19,6 @@ from __future__ import absolute_import, division, print_function
 import re
 
 import gitreview.proc as proc
-import pycompat
 
 from .exceptions import *
 from . import constants
@@ -111,10 +110,10 @@ class Status(object):
 class BlobInfo(object):
     """Info about a git blob"""
     def __init__(self, sha1, path, mode):
-        self.sha1 = pycompat.decodeutf8(sha1)
+        self.sha1 = sha1.decode("utf-8")
         self.path = (
             None if path is None else
-            pycompat.decodeutf8(path, errors="surrogateescape")
+            path.decode("utf-8", errors="surrogateescape")
         )
         self.mode = mode
 

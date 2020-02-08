@@ -23,8 +23,6 @@ from __future__ import absolute_import, division, print_function
 import subprocess
 import types
 
-import pycompat
-
 PIPE = subprocess.PIPE
 STDOUT = subprocess.STDOUT
 
@@ -54,7 +52,7 @@ class CmdFailedError(ProcError):
     def __init__(self, args, msg, cmd_err=None):
         msg = 'command %s %s' % (args, msg)
         if cmd_err:
-            err_str = pycompat.decodeutf8(cmd_err, errors="replace")
+            err_str = cmd_err.decode("utf-8", errors="replace")
             indented_err = '  ' + '\n  '.join(err_str.splitlines())
             msg = msg + '\nstderr:\n' + indented_err
         ProcError.__init__(self, msg)

@@ -18,7 +18,6 @@ from __future__ import absolute_import, division, print_function
 
 import gitreview.proc as proc
 
-import pycompat
 from .exceptions import *
 from . import constants
 
@@ -89,7 +88,7 @@ class Config(object):
 def parse(config_output):
     config = Config()
 
-    lines = pycompat.decodeutf8(config_output).split('\n')
+    lines = config_output.decode("utf-8").split('\n')
     for line in lines:
         if not line:
             continue

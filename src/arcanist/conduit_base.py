@@ -22,13 +22,8 @@ import socket
 import sys
 import time
 import urllib
-
-try:
-    from http.client import HTTPConnection, HTTPSConnection
-    from urllib.parse import urlparse
-except ImportError:
-    from httplib import HTTPConnection, HTTPSConnection
-    from urlparse import urlparse
+from http.client import HTTPConnection, HTTPSConnection
+from urllib.parse import urlparse
 
 from .err import ConduitClientError
 

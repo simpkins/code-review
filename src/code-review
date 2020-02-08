@@ -148,7 +148,7 @@ def setup_phabricator_review_impl(repo, options, rev_id):
     return rev
 
 
-def main(argv):
+def main(argv) -> int:
     ap, args = parse_args()
 
     logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,

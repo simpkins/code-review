@@ -22,7 +22,6 @@ from typing import Set
 
 from .. import scm
 from ..git.diff import BlobInfo, DiffFileList, DiffEntry, Status
-import pycompat
 
 
 class Repository(scm.RepositoryBase):
@@ -84,7 +83,7 @@ class Repository(scm.RepositoryBase):
             cmd.append('revsetalias.%s=%s' % (n, v))
 
         out = self.run_oneline(cmd)
-        return pycompat.decodeutf8(out)
+        return out.decode("utf-8")
 
     def is_working_dir(self, commit):
         return commit == COMMIT_WD
@@ -103,13 +102,13 @@ class Repository(scm.RepositoryBase):
         else:
             self.run_cmd(cmd, stdout=outfile)
 
-    def _get_node(self, name):
+    def _get_node(self, name: str) -> str:
         result = self._node_cache.get(name)
         if result is not None:
             return result
 
         out = self.run_oneline(['log', '-T{node}', '-r', name])
-        result = pycompat.decodeutf8(out)
+        result = out.decode("utf-8")
         self._node_cache[name] = result
         return result
 

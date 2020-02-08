@@ -17,7 +17,6 @@
 from __future__ import absolute_import, division, print_function
 
 import abc
-import pycompat
 
 
 class ScmAPI(object):
@@ -25,7 +24,7 @@ class ScmAPI(object):
         pass
 
 
-class RepositoryBase(pycompat.ABC):
+class RepositoryBase(abc.ABC):
     @abc.abstractmethod
     def getDiff(self, parent, child, paths=None):
         pass

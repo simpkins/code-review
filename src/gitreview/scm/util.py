@@ -5,22 +5,12 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import sys
 
-from .. import git
+from .. import eden, git
 have_git_support = True
 
-if sys.version_info[0] >= 3:
-    from .. import eden
-    have_eden_support = True
-else:
-    have_eden_support = False
-
-try:
-    from .. import hgapi
-    have_hg_support = True
-except ImportError:
-    have_hg_support = False
+# from .. import hgapi
+have_hg_support = False
 
 
 def find_repo(ap, args):
@@ -88,9 +78,8 @@ def _try_get_repo(path):
 
         # All EdenSCM repositories generally list treestate and remotefilelog
         # in their requirements.
-        if have_eden_support:
-            if "treestate" in requirements and "remotefilelog" in requirements:
-                return eden.Repository(path)
+        if "treestate" in requirements and "remotefilelog" in requirements:
+            return eden.Repository(path)
 
         # Otherwise assume this is a vanilla Mercurial repository
         if have_hg_support:

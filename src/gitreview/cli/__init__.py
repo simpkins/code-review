@@ -20,7 +20,6 @@ import readline
 import sys
 import traceback
 
-import pycompat
 from .exceptions import *
 from . import tokenize
 
@@ -109,7 +108,7 @@ class CLI(object):
 
     def readline(self):
         try:
-            return pycompat.readline(self.prompt)
+            return input(self.prompt)
         except EOFError:
             return None
 

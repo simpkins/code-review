@@ -23,7 +23,6 @@ import subprocess
 import tempfile
 
 import gitreview.proc as proc
-import pycompat
 
 from .exceptions import *
 from . import constants, commit as git_commit, diff as git_diff, obj as git_obj
@@ -209,7 +208,7 @@ class Repository(object):
                 ex.stderr.find('bad revision')):
                 raise NoSuchCommitError(name)
             raise
-        return pycompat.decodeutf8(sha1)
+        return sha1.decode("utf-8")
 
     def getSha1(self, name):
         """
