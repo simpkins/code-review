@@ -20,6 +20,7 @@ import stat
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 import scmreview.proc as proc
 
@@ -36,49 +37,36 @@ from . import (
 
 class Repository(RepositoryBase):
     def __init__(
-        self, git_dir: Path, working_dir: Path, config: config_mod.Config
+        self, git_dir: Path, working_dir: Optional[Path], config: config_mod.Config
     ) -> None:
-        self.gitDir = git_dir
-        self.workingDir = working_dir
+        self.git_dir = git_dir
+        self.working_dir = working_dir
         self.config = config
 
         self.__gitCmdEnv = os.environ.copy()
-        self.__gitCmdEnv['GIT_DIR'] = self.gitDir
-        if self.workingDir:
-            self.__gitCmdCwd = self.workingDir
-            self.__gitCmdEnv['GIT_WORK_TREE'] = self.workingDir
+        self.__gitCmdEnv['GIT_DIR'] = str(self.git_dir)
+        if self.working_dir:
+            self.__gitCmdCwd = self.working_dir
+            self.__gitCmdEnv['GIT_WORK_TREE'] = str(self.working_dir)
         else:
-            self.__gitCmdCwd = self.gitDir
-            if self.__gitCmdEnv.has_key('GIT_WORK_TREE'):
-                del(self.__gitCmdEnv['GIT_WORK_TREE'])
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        return None
+            self.__gitCmdCwd = self.git_dir
+            self.__gitCmdEnv.pop('GIT_WORK_TREE', None)
 
     def __str__(self):
-        if self.workingDir:
-            return self.workingDir
-        return self.gitDir
+        if self.working_dir:
+            return str(self.working_dir)
+        return str(self.git_dir)
 
-    def getGitDir(self):
+    def get_git_dir(self) -> Path:
+        """Returns the path to the repository's git directory.
         """
-        repo.getGitDir() --> path
+        return self.git_dir
 
-        Returns the path to the repository's git directory.
-        """
-        return self.gitDir
-
-    def getWorkingDir(self):
-        """
-        repo.getWorkingDir() --> path or Nonea
-
-        Returns the path to the repository's working directory, or None if
+    def get_working_dir(self) -> Optional[Path]:
+        """Returns the path to the repository's working directory, or None if
         the working directory path is not known.
         """
-        return self.workingDir
+        return self.working_dir
 
     def hasWorkingDirectory(self):
         """
@@ -89,7 +77,7 @@ class Repository(RepositoryBase):
         cases.  Notably, this returns False if the git command was invoked from
         within the .git directory itself.)
         """
-        return bool(self.workingDir)
+        return bool(self.working_dir)
 
     def isBare(self):
         """
@@ -277,7 +265,7 @@ class Repository(RepositoryBase):
         if self.hasWorkingDirectory():
             # git only checks the working directory for path names in this
             # situation.  We'll do the same.
-            is_path = os.path.exists(os.path.join(self.workingDir, name))
+            is_path = os.path.exists(os.path.join(self.working_dir, name))
         else:
             is_path = False
 
@@ -445,7 +433,7 @@ class Repository(RepositoryBase):
             tree = tree.sha1
 
         # Read the parent tree into a new temporary index file
-        tmp_index = tempfile.NamedTemporaryFile(dir=self.gitDir,
+        tmp_index = tempfile.NamedTemporaryFile(dir=self.git_dir,
                                                 prefix='apply-patch.index.')
         args = ['read-tree', tree, '--index-output=%s' % (tmp_index.name,)]
         self.runSimpleGitCmd(args)

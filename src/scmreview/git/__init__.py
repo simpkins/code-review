@@ -44,8 +44,10 @@ def is_git_dir(path: Path) -> bool:
     # This is normally a directory called "objects" inside the git directory,
     # but it can be overridden with the GIT_OBJECT_DIRECTORY environment
     # variable.
-    object_dir = os.environ.get('GIT_OBJECT_DIRECTORY')
-    if object_dir is None:
+    object_dir_env = os.environ.get('GIT_OBJECT_DIRECTORY')
+    if object_dir_env is not None:
+        object_dir = Path(object_dir_env)
+    else:
         object_dir = path / "objects"
     if not object_dir.is_dir():
         return False
@@ -64,7 +66,7 @@ def is_git_dir(path: Path) -> bool:
 
 def _get_git_dir(
     git_dir: Optional[Path] = None, cwd: Optional[Path] = None
-) -> Tuple[Path, Path]:
+) -> Tuple[Path, Optional[Path]]:
     """
     _get_git_dir(git_dir=None, cwd=None) --> (git_dir, working_dir)
 
@@ -150,7 +152,7 @@ def check_git_path(path: Path) -> Optional[Tuple[Path, Path]]:
             first_line = f.readline()
         m = re.match(r'^gitdir: (.*)\n?', first_line)
         if m:
-            dest = os.path.normpath(os.path.join(path, m.group(1)))
+            dest = (path / m.group(1)).resolve(strict=False)
             if not is_git_dir(dest):
                 raise GitError('%s points to bad git diretory %s' %
                                (git_path, dest))
@@ -184,8 +186,10 @@ def get_repo(
 
     # If working_dir wasn't explicitly specified, but GIT_WORK_TREE is set in
     # the environment, use that.
-    if working_dir == None and os.environ.has_key('GIT_WORK_TREE'):
-        working_dir = os.environ['GIT_WORK_TREE']
+    if working_dir == None:
+        working_dir_env = os.environ.get('GIT_WORK_TREE')
+        if working_dir_env is not None:
+            working_dir = Path(working_dir_env)
 
     if working_dir == None:
         is_bare = git_config.getBool('core.bare', False)

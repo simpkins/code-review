@@ -19,10 +19,11 @@ from __future__ import absolute_import, division, print_function
 import datetime
 import os
 import time
+from typing import Optional
 
 from .exceptions import *
 from . import constants
-from . import obj as git_obj
+from . import obj as git_obj, repo as git_repo
 
 
 class GitTimezone(datetime.tzinfo):
@@ -70,7 +71,16 @@ class Commit(git_obj.Object):
 
     Commit objects always contain fully parsed commit information.
     """
-    def __init__(self, repo, sha1, tree, parents, author, committer, comment):
+    def __init__(
+        self,
+        repo: git_repo.Repository,
+        sha1,
+        tree: Optional[bytes],
+        parents,
+        author,
+        committer,
+        comment
+    ):
         git_obj.Object.__init__(self, repo, sha1, constants.OBJ_COMMIT)
         self.tree = tree
         self.parents = parents
@@ -95,7 +105,11 @@ class Commit(git_obj.Object):
     def getSha1(self):
         return self.sha1
 
-    def getTree(self):
+    def getTree(self) -> Optional[bytes]:
+        """Returns the ID of the root tree.
+        May return None for commit objects that represent the state from
+        the working directory or an index file.
+        """
         return self.tree
 
     def getParents(self):
@@ -227,7 +241,7 @@ def get_index_commit(repo):
 
     Get a fake Commit object representing the changes currently in the index.
     """
-    tree = os.path.join(repo.getGitDir(), 'index')
+    tree = None
     parents = [constants.COMMIT_HEAD]
     author = _get_bogus_author()
     committer = _get_bogus_author()
@@ -244,9 +258,7 @@ def get_working_dir_commit(repo):
     Get a fake Commit object representing the changes currently in the working
     directory.
     """
-    tree = repo.getWorkingDir()
-    if not tree:
-        tree = '<none>'
+    tree = None
     parents = [constants.COMMIT_INDEX]
     author = _get_bogus_author()
     committer = _get_bogus_author()

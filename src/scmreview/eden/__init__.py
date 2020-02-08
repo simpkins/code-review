@@ -19,7 +19,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import subprocess
 from pathlib import Path
-from typing import Set
+from typing import Dict, Optional, Set
 
 from scmreview.scm.repo import RepositoryBase
 from ..git.diff import BlobInfo, DiffFileList, DiffEntry, Status
@@ -32,13 +32,16 @@ class Repository(RepositoryBase):
         self.env = os.environ.copy()
         self.env['HGPLAIN'] = '1'
 
-        self._node_cache = {}
+        self._node_cache: Dict[str, str] = {}
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         pass
+
+    def get_working_dir(self) -> Optional[Path]:
+        return self.path
 
     def getDiff(self, parent, child, paths=None):
         cmd = ['status', '-0Cmardu']
@@ -150,7 +153,7 @@ class DiffParser(object):
         self.results = results
         self.data = data
         self.idx = 0
-        self._old_paths: Set(bytes) = set()
+        self._old_paths: Set[bytes] = set()
         self.prev_entry = None
 
     def run(self) -> None:

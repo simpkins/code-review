@@ -84,7 +84,6 @@ class CustomUI(mercurial.ui.ui):
 class Repository(object):
     def __init__(self, path):
         self.path = path
-        self.workingDir = path
         self._manifestCache = {}
 
         if hasattr(CustomUI, 'load'):
@@ -228,7 +227,7 @@ class Repository(object):
     def is_working_dir(self, commit):
         return commit == COMMIT_WD
 
-    def getWorkingDir(self):
+    def get_working_dir(self) -> Optional[Path]:
         return self.repo.root
 
     def getCommit(self, name):

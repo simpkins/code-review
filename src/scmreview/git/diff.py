@@ -211,9 +211,6 @@ class DiffFileList(object):
         # XXX: This violates the standard pythonic dict-like behavior
         return iter(self.entries.values())
 
-    def keys(self):
-        return self.entries.keys()
-
     def values(self):
         return self.entries.values()
 

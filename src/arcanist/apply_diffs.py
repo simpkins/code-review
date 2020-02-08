@@ -204,8 +204,9 @@ Differential Revision: {uri}
         #
         # By default, assume the diff applies to the directory where we found
         # the .arcconfig file.
-        default_prefix = os.path.relpath(self.arc_dir.root,
-                                         self.repo.workingDir)
+        working_dir = self.repo.get_working_dir()
+        assert working_dir is not None
+        default_prefix = os.path.relpath(self.arc_dir.root, working_dir)
         diff_project = diff.all_params.get('projectName')
         if not diff_project:
             return default_prefix
@@ -216,9 +217,9 @@ Differential Revision: {uri}
         # Check to see if there is an arcconfig file at the root of the
         # repository.
         try:
-            root_arc = WorkingCopy(self.repo.workingDir)
+            root_arc = WorkingCopy(working_dir)
             if diff_project == root_arc.config.project_id:
-                return os.path.relpath(root_arc.root, self.repo.workingDir)
+                return os.path.relpath(root_arc.root, working_dir)
         except NoArcConfigError:
             pass
 

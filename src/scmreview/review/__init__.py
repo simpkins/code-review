@@ -18,6 +18,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import tempfile
+from pathlib import Path
 
 import scmreview.git as git
 
@@ -36,13 +37,18 @@ class TmpFile(object):
         self.tmp_file = None
 
         if repo.is_working_dir(self.commit):
-            self.tmp_path = os.path.join(repo.getWorkingDir(), path)
+            working_dir = repo.get_working_dir()
+            if working_dir is None:
+                raise Exception(
+                    "cannot diff the working directory in a bare repository"
+                )
+            self.tmp_path = working_dir / path
         else:
             prefix = 'git-review-%s-' % (os.environ['USER'])
             suffix = '-' + os.path.basename(self.path)
             self.tmp_file = tempfile.NamedTemporaryFile(prefix=prefix,
                                                         suffix=suffix)
-            self.tmp_path = self.tmp_file.name
+            self.tmp_path = Path(self.tmp_file.name)
             # Invoke git to write the blob contents into the temporary file
             self.repo.getBlobContents(self.commit, self.path,
                                       outfile=self.tmp_file)
@@ -52,7 +58,7 @@ class TmpFile(object):
             self.tmp_file.close()
 
     def __str__(self):
-        return self.tmp_path
+        return str(self.tmp_path)
 
 
 def sort_reasonably(entries):
@@ -157,8 +163,9 @@ class Review(object):
         # Try expanding commit aliases in the name, and seeing if that is
         # a valid commit.
         is_rev = self.repo.isRevision(self.expand_commit_name(name))
-        if self.repo.hasWorkingDirectory():
-            is_path = os.path.exists(os.path.join(self.repo.workingDir, name))
+        working_dir = self.repo.get_working_dir()
+        if working_dir is not None:
+            is_path = (working_dir / name).exists()
         else:
             is_path = None
 
