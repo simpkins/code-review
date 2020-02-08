@@ -18,7 +18,7 @@ from __future__ import absolute_import, division, print_function
 
 import re
 
-import gitreview.proc as proc
+import scmreview.proc as proc
 
 from .exceptions import *
 from . import constants

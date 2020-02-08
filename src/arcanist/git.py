@@ -4,8 +4,8 @@
 #
 import arcanist.gitapply
 from .git_differential import get_phabricator_commit_chain
-from gitreview.git.exceptions import NoSuchCommitError
-from gitreview.git.commit import log_commit_paths
+from scmreview.git.exceptions import NoSuchCommitError
+from scmreview.git.commit import log_commit_paths
 
 import logging
 

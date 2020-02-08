@@ -12,8 +12,8 @@ import re
 from .err import PatchFailedError
 from .revision import ChangeSet
 
-from gitreview.git.exceptions import NoSuchCommitError
-from gitreview.hgapi import FakeCommit
+from scmreview.git.exceptions import NoSuchCommitError
+from scmreview.hgapi import FakeCommit
 
 try:
     import edenscm.mercurial as mercurial

@@ -68,7 +68,7 @@ class HgError(Exception):
 class CustomUI(mercurial.ui.ui):
     def __init__(self, src=None):
         super(CustomUI, self).__init__(src)
-        self._gitreview_aliases = {}
+        self._scmreview_aliases = {}
 
     def configitems(self, section, untrusted=False):
         normal_return = super(CustomUI, self).configitems(section, untrusted)
@@ -76,7 +76,7 @@ class CustomUI(mercurial.ui.ui):
             return normal_return
 
         ret = normal_return[:]
-        for k, v in self._gitreview_aliases.items():
+        for k, v in self._scmreview_aliases.items():
             ret.append((k, v))
         return ret
 
@@ -432,14 +432,14 @@ class Repository(object):
         try:
             # Use our custom UI object to define our aliases
             # while we perform the expansion.
-            self.repo.ui._gitreview_aliases = real_aliases
+            self.repo.ui._scmreview_aliases = real_aliases
             rev = mercurial.scmutil.revsingle(self.repo, name)
             return rev.hex()
         except Exception as ex:
             raise
             #return name
         finally:
-            self.repo.ui._gitreview_aliases = {}
+            self.repo.ui._scmreview_aliases = {}
 
 
 class FakeCommit(object):

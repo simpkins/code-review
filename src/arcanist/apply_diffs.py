@@ -10,7 +10,7 @@ from . import git as arc_git
 
 try:
     from . import hg as arc_hg
-    from gitreview import hgapi
+    from scmreview import hgapi
     have_hg_support = True
 except ImportError:
     have_hg_support = False

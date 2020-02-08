@@ -20,8 +20,6 @@ import datetime
 import os
 import time
 
-import gitreview.proc as proc
-
 from .exceptions import *
 from . import constants
 from . import obj as git_obj

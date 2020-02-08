@@ -4,7 +4,7 @@
 #
 from __future__ import absolute_import, division, print_function
 
-import gitreview.git as git
+import scmreview.git as git
 
 
 class NotADifferentialCommit(Exception):

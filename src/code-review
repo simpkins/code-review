@@ -42,9 +42,9 @@ import logging
 import os
 import sys
 
-import gitreview.git as git
-import gitreview.review as review
-import gitreview.scm.util
+import scmreview.git as git
+import scmreview.review as review
+import scmreview.scm.util
 
 import arcanist.apply_diffs
 from arcanist import NoSuchRevisionError
@@ -155,8 +155,8 @@ def main(argv) -> int:
                         format='%(asctime)s %(message)s')
 
     # Find the repository we are operating in
-    with gitreview.scm.util.find_repo(ap, args) as repo:
-        gitreview.scm.util.resolve_commits(repo, ap, args)
+    with scmreview.scm.util.find_repo(ap, args) as repo:
+        scmreview.scm.util.resolve_commits(repo, ap, args)
         if args.differential:
             try:
                 rev = setup_phabricator_review(repo, args)

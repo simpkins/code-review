@@ -19,7 +19,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import tempfile
 
-import gitreview.git as git
+import scmreview.git as git
 
 from .exceptions import *
 from . import cli_reviewer

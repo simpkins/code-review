@@ -19,8 +19,8 @@ from __future__ import absolute_import, division, print_function
 import os
 import subprocess
 
-import gitreview.cli as cli
-import gitreview.git as git
+import scmreview.cli as cli
+import scmreview.git as git
 
 from .exceptions import *
 
@@ -582,7 +582,7 @@ class CliReviewer(cli.CLI):
         self.index_updated()
 
     def configure_commands(self):
-        # TODO: It would be nice to support a ~/.gitreviewrc file, too, or
+        # TODO: It would be nice to support a ~/.scmreviewrc file, too, or
         # maybe even storing configuration via git-config.
         self.view_command = self._get_viewer_cmd()
         self.diff_command = self._get_diff_cmd()
