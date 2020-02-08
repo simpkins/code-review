@@ -19,11 +19,6 @@ from __future__ import absolute_import, division, print_function
 import abc
 
 
-class ScmAPI(object):
-    def __init__(self):
-        pass
-
-
 class RepositoryBase(abc.ABC):
     @abc.abstractmethod
     def getDiff(self, parent, child, paths=None):
