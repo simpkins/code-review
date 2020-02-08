@@ -47,19 +47,21 @@ class Repository(RepositoryBase):
         cmd = ['status', '-0Cmardu']
         if child == COMMIT_WD:
             if parent == COMMIT_WD:
+                return DiffFileList("", "")
                 return entries
             cmd += ['--rev', parent]
         elif parent == COMMIT_WD:
             cmd += ['--rev', self._get_node(parent)]
+            cnode = self._get_node(child)
             # TODO: reverse statuses
             raise Exception('todo: reverse each file status after diff')
         else:
-            pnode = self._get_node(parent)
-            cnode = self._get_node(child)
-            cmd += ['--rev', pnode, '--rev', cnode]
+            parent = self._get_node(parent)
+            child = self._get_node(child)
+            cmd += ['--rev', parent, '--rev', child]
 
         out = self.run_cmd(cmd)
-        entries = DiffFileList(pnode, cnode)
+        entries = DiffFileList(parent, child)
         DiffParser(entries, out).run()
         return entries
 

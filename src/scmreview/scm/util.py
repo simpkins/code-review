@@ -20,9 +20,7 @@ from typing import Optional
 
 from .repo import RepositoryBase
 from .. import eden, git
-
-# from .. import hgapi
-have_hg_support = False
+import scmreview.git.repo
 
 
 def find_repo(path: Path) -> Optional[RepositoryBase]:
@@ -75,8 +73,7 @@ def _try_get_repo(path: Path) -> Optional[RepositoryBase]:
             return eden.Repository(path)
 
         # Otherwise assume this is a vanilla Mercurial repository
-        if have_hg_support:
-            return hgapi.Repository(path)
+        # TODO: Implement vanilla Mercurial support again.
         raise Exception("this looks like a Mercurial repository, "
                         "but Mercurial support is not available")
 
@@ -136,22 +133,24 @@ def _resolve_commits_git(ap, args):
         args.parent_commit = git.COMMIT_INDEX
 
 
-def _resolve_commits_hg(ap, args):
+def _resolve_commits_eden(ap, args):
     if args.cached:
         ap.error('--cached is only supported in git repositories, '
                  'not mercurial')
 
     if args.child_commit is None:
-        args.child_commit = hgapi.COMMIT_WD
+        args.child_commit = eden.COMMIT_WD
     if args.parent_commit is None:
-        args.parent_commit = hgapi.COMMIT_HEAD
+        args.parent_commit = eden.COMMIT_HEAD
 
 
 def resolve_commits(repo, ap, args):
     if _resolve_commits_common(ap, args):
         return
 
-    if have_hg_support and isinstance(repo, hgapi.Repository):
-        _resolve_commits_hg(ap, args)
-    else:
+    if isinstance(repo, scmreview.git.repo.Repository):
         _resolve_commits_git(ap, args)
+    elif isinstance(repo, eden.Repository):
+        _resolve_commits_eden(ap, args)
+    else:
+        raise Exception("unsupported repository type")

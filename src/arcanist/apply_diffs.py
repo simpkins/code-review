@@ -8,12 +8,7 @@ from .working_copy import WorkingCopy, NoArcConfigError
 from . import revision
 from . import git as arc_git
 
-try:
-    from . import hg as arc_hg
-    from scmreview import hgapi
-    have_hg_support = True
-except ImportError:
-    have_hg_support = False
+import scmreview.git.repo
 
 import os
 import logging
@@ -42,10 +37,10 @@ class _Applier(object):
 
         self.repo = repo
         self.arc_dir = WorkingCopy(os.getcwd())
-        if have_hg_support and isinstance(repo, hgapi.Repository):
-            self.arc_scm = arc_hg.ArcanistHg(repo)
-        else:
+        if isinstance(repo, scmreview.git.repo.Repository):
             self.arc_scm = arc_git.ArcanistGit(repo)
+        else:
+            raise Exception(f"unsupported repository type")
 
         self._rev_results = {}
 
