@@ -20,12 +20,12 @@ import os
 import subprocess
 from typing import Set
 
-from .. import scm
+from scmreview.scm.repo import RepositoryBase
 from ..git.diff import BlobInfo, DiffFileList, DiffEntry, Status
 
 
-class Repository(scm.RepositoryBase):
-    def __init__(self, path):
+class Repository(RepositoryBase):
+    def __init__(self, path) -> None:
         self.path = path
         self.eden_cmd = ['hg']
         self.env = os.environ.copy()

@@ -14,3 +14,26 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+import abc
+
+
+class RepositoryBase(abc.ABC):
+    @abc.abstractmethod
+    def getDiff(self, parent, child, paths=None):
+        pass
+
+    @abc.abstractmethod
+    def expand_commit_name(self, name, aliases):
+        pass
+
+    @abc.abstractmethod
+    def getCommitSha1(self, name, extra_args=None):
+        pass
+
+    @abc.abstractmethod
+    def is_working_dir(self, commit):
+        pass
+
+    @abc.abstractmethod
+    def getBlobContents(self, commit, path, outfile=None):
+        pass
