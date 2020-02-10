@@ -9,7 +9,7 @@ from .err import *
 
 
 def _populate_json_object(object, params, mapping):
-    for key, attr_name in mapping.iteritems():
+    for key, attr_name in mapping.items():
         if not attr_name:
             attr_name = key
         if isinstance(key, str):
@@ -130,7 +130,7 @@ class Revision(object):
             # necessary.
             if isinstance(orig_diffs, list):
                 orig_diffs = params((diff.id, diff) for diff in orig_diffs)
-            for diff_id, diff_dict in orig_diffs.iteritems():
+            for diff_id, diff_dict in orig_diffs.items():
                 diff = Diff(self, diff_dict)
                 self.diffs.append(diff)
             # Sort the diffs in ascending order by ID.

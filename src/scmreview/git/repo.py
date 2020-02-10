@@ -421,7 +421,7 @@ class Repository(RepositoryBase):
         refs matching at least one of the patterns will be returned.
         """
         ref_dict = self.getRefs(glob)
-        return sorted(ref_dict.iterkeys())
+        return sorted(ref_dict.keys())
 
     def applyPatch(self, patch, tree='HEAD', strip=1, prefix=None,
                    context=None):

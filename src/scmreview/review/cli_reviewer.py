@@ -485,7 +485,7 @@ class AliasCommand(cli.ArgCommand):
     def run_parsed(self, cli_obj, name, args):
         if args.alias is None:
             # Show all aliases
-            sorted_aliases = sorted(cli_obj.review.commit_aliases.iteritems(),
+            sorted_aliases = sorted(cli_obj.review.commit_aliases.items(),
                                     key=lambda x: x[0])
             for (alias, commit) in sorted_aliases:
                 cli_obj.output('%s: %s'% (alias, commit))
