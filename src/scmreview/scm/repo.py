@@ -60,3 +60,17 @@ class RepositoryBase(abc.ABC):
         the working directory path is not known.
         """
         raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_default_diff_parent(self) -> str:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_default_diff_child(self) -> str:
+        raise NotImplementedError()
+
+    def get_index_commit_id(self) -> Optional[str]:
+        """For repositories that support an index (e.g., git), returns a string that can be
+        used to identify the index state.
+        """
+        return None

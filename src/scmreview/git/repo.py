@@ -95,6 +95,15 @@ class Repository(RepositoryBase):
         """
         return self.config.getBool('core.bare', self.hasWorkingDirectory())
 
+    def get_default_diff_parent(self) -> str:
+        return constants.COMMIT_HEAD
+
+    def get_default_diff_child(self) -> str:
+        return constants.COMMIT_WD
+
+    def get_index_commit_id(self) -> str:
+        return constants.COMMIT_INDEX
+
     def __getCmdEnv(self, extra_env=None):
         if not extra_env:
             return self.__gitCmdEnv

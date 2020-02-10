@@ -40,23 +40,14 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Any, Dict, Optional
 
-import scmreview.git as git
 import scmreview.review as review
+import scmreview.scm.repo
 import scmreview.scm.util
-
-import arcanist.apply_diffs
-from arcanist import NoSuchRevisionError
 
 RETCODE_SUCCESS = 0
 RETCODE_ARGUMENTS_ERROR = 1
-RETCODE_PHABRICATOR_ERROR = 2
-
-f_progname = os.path.basename(sys.argv[0])
-
-
-class NoDiffsError(Exception):
-    pass
 
 
 def parse_args():
@@ -64,17 +55,23 @@ def parse_args():
     ap.add_argument('-c', '--commit',
                     action='store', dest='commit', default=None,
                     help='Diff the specified commit against its parent')
-    ap.add_argument('-d', '--differential', action='store',
-                    dest='differential', default=None,
-                    help='Review the specified differential revision')
+    ap.add_argument('-d', '--diff', action='store',
+                    metavar='DIFF', default=None,
+                    help='Review the specified diff ID from an external code '
+                    'review system')
     ap.add_argument('--onto',
                     action='store', dest='onto', metavar='COMMIT',
                     default=None,
-                    help='Apply differential patches onto the specified '
+                    help='Apply external review patches onto the specified '
                     'commit')
     ap.add_argument('--cached',
                     action='store_true', dest='cached', default=False,
                     help='Diff against the index instead of the working tree')
+    ap.add_argument('--config',
+                    metavar="PATH",
+                    type=Path,
+                    help='Load configuration from the specified file '
+                    '(default=~/.scmreview)')
     ap.add_argument('--repo',
                     action='store', dest='repo',
                     metavar='DIRECTORY', default=None,
@@ -88,55 +85,115 @@ def parse_args():
 
     args = ap.parse_args()
 
-    # --onto is only valid with --differential
-    if args.onto is not None and args.differential is None:
-        ap.error('--onto is only valid when used with --differential')
+    # --onto is only valid with --diff
+    if args.onto is not None and args.diff is None:
+        ap.error('--onto is only valid when used with --diff')
 
     return ap, args
 
 
-def setup_phabricator_review(repo, options):
-    rev_id_str = options.differential
-    try:
-        # Accept D123456 or just 123456
-        if rev_id_str.startswith('D'):
-            rev_id = int(rev_id_str[1:])
-        else:
-            rev_id = int(rev_id_str)
-    except ValueError:
-        raise NoSuchRevisionError(rev_id_str)
+def get_home_dir() -> Path:
+    home_dir = os.environ["HOME"]
+    if home_dir is not None:
+        return Path(home_dir)
 
-    print('Checking for diffs from revision %s' % (rev_id,))
-
-    return setup_phabricator_review_impl(repo, options, rev_id)
+    pwent = pwd.getpwuid(os.getuid())
+    return Path(pwent.pw_dir)
 
 
-def setup_phabricator_review_impl(repo, options, rev_id):
-    commits = arcanist.apply_diffs.apply_diffs(repo, rev_id)
+class ConfigError(Exception):
+    def __init__(self, filename: Path, ex: Exception) -> None:
+        self.filename = filename
+        self.ex = ex
+        msg = f"error loading config file {filename}: {ex}"
+        super().__init__(msg)
 
-    # Raise an error if this revision has no diffs at all
-    if not commits:
-        raise NoDiffsError('No diffs applied from phabricator revision')
 
-    # Use the last commit in the chain as the child
-    child = str(commits[-1])
-    # Use the first parent of the child the parent
-    parent = '%s^' % (commits[-1],)
+class Config:
+    def __init__(self, path: Optional[str]):
+        if path is None:
+            path = get_home_dir() / ".scmreview"
+        self.path = path
 
+        self._data = self._load()
+
+    def get(self, name: str) -> Any:
+        return self._data.get(name)
+
+    def _load(self) -> Dict[str, Any]:
+        try:
+            data = self.path.read_text()
+        except FileNotFoundError:
+            return {}
+
+        config_vars: Dict[str, Any] = {}
+        try:
+            code = compile(data, self.path, "exec")
+            exec(code, config_vars)
+        except Exception as ex:
+            raise ConfigError(self.path, ex)
+
+        return config_vars
+
+
+def create_review_from_commits(
+    repo: scmreview.scm.repo.RepositoryBase,
+    parent: str,
+    child: str,
+) -> review.Review:
     diff = repo.getDiff(parent, child)
-    rev = review.Review(repo, diff)
+    return review.Review(repo, diff)
 
-    # Add commit aliases for each individual diff
-    n = 0
-    for commit in commits:
-        rev.set_commit_alias('diff%d' % (n + 1,), str(commit))
-        n += 1
 
-    # Also add an alias called "prev" for the most recent diff before this one
-    if len(commits) > 1:
-        rev.set_commit_alias('prev', str(commits[-2]))
+def create_review(
+    repo: scmreview.scm.repo.RepositoryBase,
+    config: Config,
+    ap: argparse.ArgumentParser,
+    args: argparse.Namespace,
+) -> review.Review:
+    if args.commit is not None:
+        if args.diff is not None:
+            ap.error('--commit and --diff are mutually exclusive')
+        if args.cached:
+            ap.error('--commit and --cached are mutually exclusive')
+        if not (args.parent_commit is None and args.child_commit is None):
+            ap.error('additional commit arguments may not be specified '
+                     'with --commit')
+        return create_review_from_commits(repo, args.commit + '^', args.commit)
 
-    return rev
+    if args.diff is not None:
+        if args.cached:
+            ap.error('--diff and --cached are mutually exclusive')
+        if not (args.parent_commit is None and args.child_commit is None):
+            ap.error('additional commit arguments may not be specified '
+                     'with --diff')
+
+        diff_fn = config.get("create_diff_review")
+        if diff_fn is None:
+            ap.error(
+                f"cannot use --diff: no create_diff_review() function "
+                f"defined in {config.path}"
+            )
+        return diff_fn(repo, args.diff)
+
+    if args.cached:
+        if args.child_commit is not None:
+            ap.error('cannot specify --cached with two commits')
+        child = repo.get_index_commit_id()
+        if child is None:
+            ap.error('--cached can only be used in git repositories')
+        parent = args.parent_commit
+        if parent is None:
+            parent = repo.get_default_diff_parent()
+        return create_review_from_commits(repo, parent, child)
+
+    parent = args.parent_commit
+    child = args.child_commit
+    if parent is None:
+        parent = repo.get_default_diff_parent()
+    if child is None:
+        child = repo.get_default_diff_child()
+    return create_review_from_commits(repo, parent, child)
 
 
 def main(argv) -> int:
@@ -145,26 +202,23 @@ def main(argv) -> int:
     logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
                         format='%(asctime)s %(message)s')
 
+    # Load the scmreview config script
+    try:
+        config = Config(args.config)
+    except ConfigError as ex:
+        import traceback
+        tb_msg = "".join(traceback.format_tb(ex.ex.__traceback__)).rstrip()
+        print(f"{ex}\n{tb_msg}", file=sys.stderr)
+        return RETCODE_ARGUMENTS_ERROR
+
+    # Find the repository we are operating in
     start_path = Path.cwd() if args.repo is None else Path(args.repo)
     repo = scmreview.scm.util.find_repo(start_path)
     if repo is None:
         ap.error(f"unable to find a repository at {start_path}")
         return RETCODE_ARGUMENTS_ERROR
-
-    # Find the repository we are operating in
     with repo:
-        scmreview.scm.util.resolve_commits(repo, ap, args)
-        if args.differential:
-            try:
-                rev = setup_phabricator_review(repo, args)
-            except (NoSuchRevisionError, git.PatchFailedError,
-                    NoDiffsError) as ex:
-                sys.stderr.write('%s: error: %s\n' % (f_progname, ex))
-                return RETCODE_PHABRICATOR_ERROR
-        else:
-            diff = repo.getDiff(args.parent_commit, args.child_commit)
-            rev = review.Review(repo, diff)
-
+        rev = create_review(repo, config, ap, args)
         return review.CliReviewer(rev).run()
 
 

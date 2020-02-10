@@ -43,6 +43,12 @@ class Repository(RepositoryBase):
     def get_working_dir(self) -> Optional[Path]:
         return self.path
 
+    def get_default_diff_parent(self) -> str:
+        return COMMIT_HEAD
+
+    def get_default_diff_child(self) -> str:
+        return COMMIT_WD
+
     def getDiff(self, parent, child, paths=None):
         cmd = ['status', '-0Cmardu']
         if child == COMMIT_WD:
