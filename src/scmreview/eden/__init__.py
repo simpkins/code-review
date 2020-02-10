@@ -169,6 +169,7 @@ class DiffParser(object):
         while self.idx < data_len:
             end = self.parse_next()
             self.idx = end + 1
+        self.finish_prev_entry()
 
     def parse_next(self) -> int:
         idx = self.idx
