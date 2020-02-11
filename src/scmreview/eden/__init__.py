@@ -162,7 +162,7 @@ class DiffParser(object):
         self.data = data
         self.idx = 0
         self._old_paths: Set[bytes] = set()
-        self.prev_entry = None
+        self.prev_entry: Optional[DiffEntry] = None
 
     def run(self) -> None:
         data_len = len(self.data)
@@ -211,12 +211,13 @@ class DiffParser(object):
 
         self.finish_prev_entry()
 
+        diff_path: Optional[bytes] = path
+        old_path: Optional[bytes] = None
         if code == DIFF_CODE_MODIFIED:
             status = Status(b'M')
             old_path = path
         elif code == DIFF_CODE_ADDED:
             status = Status(b'A')
-            old_path = None
         elif code in (DIFF_CODE_REMOVED, DIFF_CODE_DELETED):
             # In practice removed entries are always listed after all added &
             # modified entries, so we should have already put all known old
@@ -227,7 +228,7 @@ class DiffParser(object):
                 return
             status = Status(b'D')
             old_path = path
-            path = None
+            diff_path = None
         elif code in (DIFF_CODE_UNKNOWN, DIFF_CODE_IGNORED, DIFF_CODE_CLEAN):
             return
         else:
@@ -241,7 +242,7 @@ class DiffParser(object):
         new_mode = b'0000'
         new_sha1 = b''
         self.prev_entry = DiffEntry(
-            old_mode, new_mode, old_sha1, new_sha1, status, old_path, path
+            old_mode, new_mode, old_sha1, new_sha1, status, old_path, diff_path
         )
 
 

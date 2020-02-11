@@ -38,6 +38,7 @@ Configuration:
 import argparse
 import logging
 import os
+import pwd
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -110,7 +111,7 @@ class ConfigError(Exception):
 
 
 class Config:
-    def __init__(self, path: Optional[str]):
+    def __init__(self, path: Optional[Path]):
         if path is None:
             path = get_home_dir() / ".scmreview"
         self.path = path
