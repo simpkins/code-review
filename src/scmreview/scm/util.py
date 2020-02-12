@@ -39,7 +39,7 @@ def find_repo(path: Path) -> Optional[RepositoryBase]:
         # If the parent_dir is one of the ceiling directories,
         # we should stop before examining it.
         parent_dir = path.parent
-        if parent_dir in ceiling_dirs:
+        if parent_dir in ceiling_dirs or parent_dir == path:
             return None
 
         path = parent_dir

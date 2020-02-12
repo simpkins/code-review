@@ -16,9 +16,13 @@
 #
 from __future__ import absolute_import, division, print_function
 
-import readline
 import sys
 import traceback
+
+try:
+    import readline
+except ImportError:
+    readline = None
 
 from .exceptions import *
 from . import tokenize
@@ -324,11 +328,15 @@ class CLI(object):
         return (cmd_name, tokens, tokenizer.get_partial_token())
 
     def setup_readline(self):
+        if readline is None:
+            return
         self._old_completer = readline.get_completer()
         readline.set_completer(self.complete)
         readline.parse_and_bind(self.completekey+": complete")
 
     def cleanup_readline(self):
+        if readline is None:
+            return
         if self._old_completer:
             readline.set_completer(self._old_completer)
         else:

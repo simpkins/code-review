@@ -21,6 +21,7 @@ Utility wrapper functions around Python's subprocess module.
 from __future__ import absolute_import, division, print_function
 
 import subprocess
+import platform
 import types
 
 PIPE = subprocess.PIPE
@@ -115,7 +116,7 @@ def check_status(args, status, expected_rc=0, expected_sig=None, cmd_err=None):
         check_signal(args, -status, expected_sig, cmd_err)
 
 
-def popen_cmd(args, cwd=None, env=None, stdin='/dev/null',
+def popen_cmd(args, cwd=None, env=None, stdin=subprocess.DEVNULL,
               stdout=subprocess.PIPE, stderr=subprocess.PIPE):
     """
     Wrapper around subprocess.Popen() that also accepts filenames
@@ -128,14 +129,19 @@ def popen_cmd(args, cwd=None, env=None, stdin='/dev/null',
     if isinstance(stderr, str):
         stderr = open(stderr, 'w')
 
-    # close_fds=True is always a good thing
+    # close_fds=True is generally desirable, but isn't supported on Windows
+    close_fds = (platform.system() != "Windows")
     p = subprocess.Popen(args, stdin=stdin, stdout=stdout, stderr=stderr,
-                         cwd=cwd, env=env, close_fds=True)
+                         cwd=cwd, env=env)
     return p
 
 
-def run_cmd(args, cwd=None, env=None, expected_rc=0, expected_sig=None,
-            stdin='/dev/null', stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+def run_cmd(
+    args, cwd=None, env=None, expected_rc=0, expected_sig=None,
+    stdin=subprocess.DEVNULL,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE
+    ):
     """
     run_cmd(args, cwd=None, env=None, expected_rc=0, expected_sig=None) -->
                 (exit_code, stdoutdata, stderrdata)

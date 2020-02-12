@@ -17,6 +17,7 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import platform
 import subprocess
 
 import scmreview.cli as cli
@@ -614,7 +615,10 @@ class CliReviewer(cli.CLI):
                 tokenizer = cli.tokenize.SimpleTokenizer(env_var)
                 return tokenizer.get_tokens()
 
-        if os.environ.has_key('DISPLAY'):
+        if platform.system() == "Windows":
+            return ['vimdiff.bat', '-R']
+
+        if 'DISPLAY' in os.environ:
             # If the user appears to be using X, default to tkdiff
             return ['tkdiff']
 

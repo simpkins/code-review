@@ -44,7 +44,8 @@ class TmpFile(object):
                 )
             self.tmp_path = working_dir / path
         else:
-            prefix = 'git-review-%s-' % (os.environ['USER'])
+            username = os.environ.get("USER") or os.environ.get("USERNAME")
+            prefix = 'git-review-%s-' % (username,)
             suffix = '-' + os.path.basename(self.path)
             self.tmp_file = tempfile.NamedTemporaryFile(prefix=prefix,
                                                         suffix=suffix)
