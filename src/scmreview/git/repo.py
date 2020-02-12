@@ -231,10 +231,10 @@ class Repository(RepositoryBase):
             raise
         return sha1
 
-    def getObjectType(self, name):
+    def getObjectType(self, name: str) -> str:
         cmd = ['cat-file', '-t', name]
         try:
-            return self.runOnelineCmd(cmd)
+            return self.runOnelineCmd(cmd).decode("utf-8")
         except proc.CmdExitCodeError as ex:
             if ex.stderr.find('Not a valid object name') >= 0:
                 raise NoSuchObjectError(name)
