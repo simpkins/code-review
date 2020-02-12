@@ -19,11 +19,14 @@ from __future__ import absolute_import, division, print_function
 import os
 import platform
 import subprocess
+import types
+from typing import Type
 
 import scmreview.cli as cli
 import scmreview.git as git
 
 from .exceptions import *
+from .tmpfile import TmpFile
 
 
 class FileIndexArgument(cli.Argument):
@@ -331,6 +334,36 @@ class GotoCommand(cli.ArgCommand):
         cli_obj.index_updated()
 
 
+class DiffFiles:
+    def __init__(self, *files: TmpFile) -> None:
+        self.files = list(files)
+
+    def __enter__(self) -> None:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException],
+        exc_value: BaseException,
+        traceback: types.TracebackType,
+    ) -> bool:
+        internal_exceptions = []
+        for f in self.files:
+            try:
+                f.__exit__(exc_type, exc_value, traceback)
+            except Exception as ex:
+                internal_exceptions.append(ex)
+
+        if internal_exceptions:
+            raise internal_exceptions[0]
+
+        return False
+
+    def open(self):
+        for f in self.files:
+            f.open()
+
+
 class DiffCommand(cli.ArgCommand):
     def __init__(self):
         help = 'Diff the specified files'
@@ -345,21 +378,21 @@ class DiffCommand(cli.ArgCommand):
         ]
         cli.ArgCommand.__init__(self, args, help)
 
-    def __getDiffFiles(self, cli_obj, args):
+    def __getDiffFiles(self, cli_obj, args) -> DiffFiles:
         if args.path3 is not None:
             # 3 arguments were specified.
             # Diff those files
             file1 = cli_obj.review.get_file(*args.path1)
             file2 = cli_obj.review.get_file(*args.path2)
             file3 = cli_obj.review.get_file(*args.path3)
-            return (file1, file2, file3)
+            return DiffFiles(file1, file2, file3)
 
         if args.path2 is not None:
             # 2 arguments were specified.
             # Diff those files
             file1 = cli_obj.review.get_file(*args.path1)
             file2 = cli_obj.review.get_file(*args.path2)
-            return (file1, file2)
+            return DiffFiles(file1, file2)
 
         # If we're still here, 0 or 1 arguments were specified.
         # We're going to need the current entry to figure out what to do.
@@ -375,7 +408,7 @@ class DiffCommand(cli.ArgCommand):
                 raise git.NoSuchBlobError(name)
             file1 = cli_obj.review.get_file(*args.path1)
             file2 = cli_obj.review.get_file('child', current_entry.new.path)
-            return (file1, file2)
+            return DiffFiles(file1, file2)
 
         # If we're still here, no arguments were specified.
         if current_entry.status == git.diff.Status.DELETED:
@@ -384,45 +417,46 @@ class DiffCommand(cli.ArgCommand):
             file1 = cli_obj.review.get_file('parent',
                                            current_entry.old.path)
             file2 = '/dev/null'
-            return (file1, file2)
+            return DiffFiles(file1, file2)
         elif current_entry.status == git.diff.Status.ADDED:
             # If the current file is a new file, diff /dev/null
             # against the file in the child.
             file1 = '/dev/null'
             file2 = cli_obj.review.get_file('child', current_entry.new.path)
-            return (file1, file2)
+            return DiffFiles(file1, file2)
         else:
             # Diff the parent file against the child file
             file1 = cli_obj.review.get_file('parent', current_entry.old.path)
             file2 = cli_obj.review.get_file('child', current_entry.new.path)
-            return (file1, file2)
+            return DiffFiles(file1, file2)
 
     def run_parsed(self, cli_obj, name, args):
-        try:
-            files = self.__getDiffFiles(cli_obj, args)
-        except NoCurrentEntryError as ex:
-            cli_obj.output_error(ex)
-            return 1
-        except git.NoSuchBlobError as ex:
-            # Convert the "blob" error message to "file", just to be more
-            # user-friendly for developers who aren't familiar with git
-            # terminology.
-            cli_obj.output_error('no such file %r' % (ex.name,))
-            return 1
-        except git.NotABlobError as ex:
-            cli_obj.output_error('not a file %r' % (ex.name,))
-            return 1
+        with self.__getDiffFiles(cli_obj, args) as files:
+            try:
+                files.open()
+            except NoCurrentEntryError as ex:
+                cli_obj.output_error(ex)
+                return 1
+            except git.NoSuchBlobError as ex:
+                # Convert the "blob" error message to "file", just to be more
+                # user-friendly for developers who aren't familiar with git
+                # terminology.
+                cli_obj.output_error('no such file %r' % (ex.name,))
+                return 1
+            except git.NotABlobError as ex:
+                cli_obj.output_error('not a file %r' % (ex.name,))
+                return 1
 
-        cmd = cli_obj.get_diff_command(*files)
-        try:
-            p = subprocess.Popen(cmd, close_fds=True)
-        except OSError as ex:
-            cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
-            return 1
+            cmd = cli_obj.get_diff_command(*files.files)
+            try:
+                p = subprocess.Popen(cmd, close_fds=True)
+            except OSError as ex:
+                cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
+                return 1
 
-        ret = p.wait()
-        cli_obj.set_suggested_command('next')
-        return ret
+            ret = p.wait()
+            cli_obj.set_suggested_command('next')
+            return ret
 
 
 class ViewCommand(cli.ArgCommand):
@@ -452,26 +486,27 @@ class ViewCommand(cli.ArgCommand):
         else:
             commit, path = args.path
 
-        try:
-            file = cli_obj.review.get_file(commit, path)
-        except git.NoSuchBlobError as ex:
-            # Convert the "blob" error message to "file", just to be more
-            # user-friendly for developers who aren't familiar with git
-            # terminology.
-            cli_obj.output_error('no such file %r' % (ex.name,))
-            return 1
-        except git.NotABlobError as ex:
-            cli_obj.output_error('not a file %r' % (ex.name,))
-            return 1
+        with cli_obj.review.get_file(commit, path) as view_file:
+            try:
+                view_file.open()
+            except git.NoSuchBlobError as ex:
+                # Convert the "blob" error message to "file", just to be more
+                # user-friendly for developers who aren't familiar with git
+                # terminology.
+                cli_obj.output_error('no such file %r' % (ex.name,))
+                return 1
+            except git.NotABlobError as ex:
+                cli_obj.output_error('not a file %r' % (ex.name,))
+                return 1
 
-        cmd = cli_obj.get_view_command(file)
-        try:
-            p = subprocess.Popen(cmd, close_fds=True)
-        except OSError as ex:
-            cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
-            return 1
+            cmd = cli_obj.get_view_command(view_file)
+            try:
+                p = subprocess.Popen(cmd, close_fds=True)
+            except OSError as ex:
+                cli_obj.output_error('failed to invoke %r: %s' % (cmd[0], ex))
+                return 1
 
-        ret = p.wait()
+            ret = p.wait()
         cli_obj.set_suggested_command('next')
         return ret
 
@@ -604,6 +639,8 @@ class CliReviewer(cli.CLI):
                 tokenizer = cli.tokenize.SimpleTokenizer(value)
                 return tokenizer.get_tokens()
 
+        if platform.system() == "Windows":
+            return ['vim.bat']
         return ['vi']
 
     def _get_diff_cmd(self):

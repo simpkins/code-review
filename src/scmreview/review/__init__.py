@@ -17,49 +17,14 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import tempfile
-from pathlib import Path
 
 import scmreview.git as git
 
 from .exceptions import *
 from . import cli_reviewer
+from . import tmpfile
 
 CliReviewer = cli_reviewer.CliReviewer
-
-
-class TmpFile(object):
-    def __init__(self, repo, commit, path):
-        self.repo = repo
-        self.commit = commit
-        self.path = path
-
-        self.tmp_file = None
-
-        if repo.is_working_dir(self.commit):
-            working_dir = repo.get_working_dir()
-            if working_dir is None:
-                raise Exception(
-                    "cannot diff the working directory in a bare repository"
-                )
-            self.tmp_path = working_dir / path
-        else:
-            username = os.environ.get("USER") or os.environ.get("USERNAME")
-            prefix = 'git-review-%s-' % (username,)
-            suffix = '-' + os.path.basename(self.path)
-            self.tmp_file = tempfile.NamedTemporaryFile(prefix=prefix,
-                                                        suffix=suffix)
-            self.tmp_path = Path(self.tmp_file.name)
-            # Invoke git to write the blob contents into the temporary file
-            self.repo.getBlobContents(self.commit, self.path,
-                                      outfile=self.tmp_file)
-
-    def __del__(self):
-        if self.tmp_file:
-            self.tmp_file.close()
-
-    def __str__(self):
-        return str(self.tmp_path)
 
 
 def sort_reasonably(entries):
@@ -150,7 +115,7 @@ class Review(object):
             raise git.NoSuchBlobError('%s:<None>' % (commit,))
 
         try:
-            return TmpFile(self.repo, expanded_commit, path)
+            return tmpfile.TmpFile(self.repo, expanded_commit, path)
         except (git.NoSuchBlobError, git.NotABlobError) as ex:
             # For user-friendliness,
             # change the name in the exception to the unexpanded name
