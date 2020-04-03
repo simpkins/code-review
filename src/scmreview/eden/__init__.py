@@ -161,7 +161,7 @@ class Repository(RepositoryBase):
                 'expected command %r to produce a single line, got %r' %
                 (cmd, out)
             )
-        return out
+        return lines[0]
 
 
 DIFF_CODE_SPACE = ord(b' ')
