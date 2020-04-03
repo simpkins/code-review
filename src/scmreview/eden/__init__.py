@@ -16,8 +16,10 @@
 #
 from __future__ import absolute_import, division, print_function
 
+import logging
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Dict, Optional, Set
 
@@ -136,11 +138,17 @@ class Repository(RepositoryBase):
 
     def run_cmd(self, cmd, stdout=subprocess.PIPE):
         full_cmd = self.eden_cmd + cmd
+        start = time.time()
+        logging.debug(f"run hg cmd: {full_cmd}")
         p = subprocess.Popen(
             full_cmd, env=self.env, cwd=self.path,
             stdout=stdout, stderr=subprocess.PIPE
         )
         out, err = p.communicate()
+        duration = time.time() - start
+        logging.debug(
+            f"  --> hg {cmd[0]} returned {p.returncode} in {duration} seconds"
+        )
         if p.returncode != 0:
             raise Exception('error running %r: stderr=%r' % (cmd, err))
         return out

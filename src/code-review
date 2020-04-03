@@ -77,6 +77,9 @@ def parse_args():
                     action='store', dest='repo',
                     metavar='DIRECTORY', default=None,
                     help='Path to the source control repository')
+    ap.add_argument('-v', '--verbose',
+                    action='store_true',
+                    help='Enable verbose debug logging.')
     ap.add_argument('-?', '--help',
                     action='help', help='Print this help message and exit')
     ap.add_argument('parent_commit',
@@ -207,10 +210,11 @@ def create_review(
     return create_review_from_commits(repo, parent, child)
 
 
-def main(argv) -> int:
+def main() -> int:
     ap, args = parse_args()
 
-    logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level, stream=sys.stderr,
                         format='%(asctime)s %(message)s')
 
     # Load the scmreview config script
@@ -234,4 +238,4 @@ def main(argv) -> int:
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    sys.exit(main())
