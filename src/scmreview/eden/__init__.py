@@ -97,6 +97,16 @@ class Repository(RepositoryBase):
         out = self.run_oneline(cmd)
         return out.decode("utf-8")
 
+    def isRevision(self, name):
+        if name == COMMIT_WD:
+            return True
+
+        try:
+            self._get_node(name)
+            return True
+        except Exception:
+            return False
+
     def is_working_dir(self, commit):
         return commit == COMMIT_WD
 

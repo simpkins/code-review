@@ -41,6 +41,10 @@ class RepositoryBase(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
+    def isRevision(self, name):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     def getCommitSha1(self, name, extra_args=None):
         raise NotImplementedError()
 
