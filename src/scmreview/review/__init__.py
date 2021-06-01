@@ -14,9 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
-from __future__ import absolute_import, division, print_function
 
 import os
+from typing import Optional
 
 import scmreview.git as git
 
@@ -106,7 +106,7 @@ class Review(object):
             raise IndexError(index)
         self.current_index = index
 
-    def get_file(self, commit, path):
+    def get_file(self, commit: str, path: Optional[str]) -> tmpfile.TmpFile:
         expanded_commit = self.expand_commit_name(commit)
 
         if path == None:

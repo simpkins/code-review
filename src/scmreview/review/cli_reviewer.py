@@ -26,7 +26,7 @@ import scmreview.cli as cli
 import scmreview.git as git
 
 from .exceptions import *
-from .tmpfile import TmpFile
+from . import tmpfile
 
 
 class FileIndexArgument(cli.Argument):
@@ -335,7 +335,7 @@ class GotoCommand(cli.ArgCommand):
 
 
 class DiffFiles:
-    def __init__(self, *files: TmpFile) -> None:
+    def __init__(self, *files: tmpfile.FileAPI) -> None:
         self.files = list(files)
 
     def __enter__(self) -> None:
@@ -416,12 +416,12 @@ class DiffCommand(cli.ArgCommand):
             # diff the file in the parent against /dev/null
             file1 = cli_obj.review.get_file('parent',
                                            current_entry.old.path)
-            file2 = '/dev/null'
+            file2 = tmpfile.EmptyFile()
             return DiffFiles(file1, file2)
         elif current_entry.status == git.diff.Status.ADDED:
             # If the current file is a new file, diff /dev/null
             # against the file in the child.
-            file1 = '/dev/null'
+            file1 = tmpfile.EmptyFile()
             file2 = cli_obj.review.get_file('child', current_entry.new.path)
             return DiffFiles(file1, file2)
         else:
