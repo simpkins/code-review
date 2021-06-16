@@ -33,6 +33,8 @@ class Repository(RepositoryBase):
         self.eden_cmd = ['hg']
         self.env = os.environ.copy()
         self.env['HGPLAIN'] = '1'
+        # Allow resolving user-defined revset aliases
+        self.env['HGPLAINEXCEPT'] = 'revsetalias'
 
         self._node_cache: Dict[str, str] = {}
 
@@ -91,6 +93,7 @@ class Repository(RepositoryBase):
                             for n, v in aliases.items()
                             if not isinstance(v, WorkingDirectoryCommit))
 
+        name = self._prevent_revnum(name)
         cmd = ['log', '-T{node}\n', '-r', name]
         for n, v in aliases.items():
             cmd.append('--config')
@@ -131,6 +134,8 @@ class Repository(RepositoryBase):
         if result is not None:
             return result
 
+        name = self._prevent_revnum(name)
+
         out = self.run_oneline(['log', '-T{node}', '-r', name])
         result = out.decode("utf-8")
         self._node_cache[name] = result
@@ -162,6 +167,28 @@ class Repository(RepositoryBase):
                 (cmd, out)
             )
         return lines[0]
+
+    def _prevent_revnum(self, revset: str) -> str:
+        # Attempt to wrap integers in the input in "id()"
+        #
+        # This prevents Eden SCM from treating it as a old-style revnum.
+        # revnum resolution is disabled by default in most cases, but is
+        # enabled when HGPLAIN=1 is set in the environment.  We don't ever
+        # want to use revnum resolution, since this produces different results
+        # than what users normally get when running hg without HGPLAIN=1
+
+        # For now we only handle input that looks like a single number, or a
+        # number followed by "^"
+        if revset.endswith("^"):
+            return self._prevent_revnum(revset[:-1]) + "^"
+
+        try:
+            int(revset)
+            return f"id({revset})"
+        except ValueError:
+            pass
+
+        return revset
 
 
 DIFF_CODE_SPACE = ord(b' ')
