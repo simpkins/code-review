@@ -15,19 +15,19 @@
 # under the License.
 #
 
-GIT_EXE = 'git'
+GIT_EXE = "git"
 
 # Constants for commit names
-COMMIT_HEAD = 'HEAD'
+COMMIT_HEAD = "HEAD"
 # COMMIT_WORKING_DIR is not supported by git; it is used only
 # internally by our code.
-COMMIT_WORKING_DIR = COMMIT_WD = ':wd'
+COMMIT_WORKING_DIR = COMMIT_WD = ":wd"
 # COMMIT_INDEX is not supported by git; it is used only
 # internally by our code.
-COMMIT_INDEX = ':0'
+COMMIT_INDEX = ":0"
 
 # Object types
-OBJ_COMMIT      = 'commit'
-OBJ_TREE        = 'tree'
-OBJ_BLOB        = 'blob'
-OBJ_TAG         = 'tag'
+OBJ_COMMIT = "commit"
+OBJ_TREE = "tree"
+OBJ_BLOB = "blob"
+OBJ_TAG = "tag"

@@ -34,16 +34,16 @@ def sort_reasonably(entries):
 
         # Among files with the same base name but different extensions,
         # use the following priorities for sorting:
-        if ext == '.thrift':
+        if ext == ".thrift":
             priority = 10
-        elif ext == '.h' or ext == '.hpp' or ext == '.hh' or ext == '.H':
+        elif ext == ".h" or ext == ".hpp" or ext == ".hh" or ext == ".H":
             priority = 20
-        elif ext == '.c' or ext == '.cpp' or ext == '.cc' or ext == '.C':
+        elif ext == ".c" or ext == ".cpp" or ext == ".cc" or ext == ".C":
             priority = 30
         else:
             priority = 40
 
-        return '%s_%s_%s' % (main, priority, ext)
+        return "%s_%s_%s" % (main, priority, ext)
 
     entries.sort(key=get_key)
 
@@ -54,8 +54,8 @@ class Review(object):
         self.diff = diff
 
         self.commit_aliases = {}
-        self.set_commit_alias('parent', self.diff.parent)
-        self.set_commit_alias('child', self.diff.child)
+        self.set_commit_alias("parent", self.diff.parent)
+        self.set_commit_alias("child", self.diff.child)
 
         self.current_index = 0
 
@@ -89,7 +89,7 @@ class Review(object):
         return self.ordering[index]
 
     def has_next(self):
-        return (self.current_index + 1 < self.num_entries)
+        return self.current_index + 1 < self.num_entries
 
     def next(self):
         if not self.has_next():
@@ -112,14 +112,14 @@ class Review(object):
         if path == None:
             # This happens if the user tries to view the child version
             # of a deleted file, or the parent version of a new file.
-            raise git.NoSuchBlobError('%s:<None>' % (commit,))
+            raise git.NoSuchBlobError("%s:<None>" % (commit,))
 
         try:
             return tmpfile.TmpFile(self.repo, expanded_commit, path)
         except (git.NoSuchBlobError, git.NotABlobError) as ex:
             # For user-friendliness,
             # change the name in the exception to the unexpanded name
-            ex.name = '%s:%s' % (commit, path)
+            ex.name = "%s:%s" % (commit, path)
             raise
 
     def is_revision_or_path(self, name):
@@ -136,14 +136,14 @@ class Review(object):
             is_path = None
 
         if is_rev and is_path:
-            reason = 'both revision and filename'
+            reason = "both revision and filename"
             raise git.AmbiguousArgumentError(name, reason)
         elif is_rev:
             return True
         elif is_path:
             return False
         else:
-            reason = 'unknown revision or path not in the working tree'
+            reason = "unknown revision or path not in the working tree"
             raise git.AmbiguousArgumentError(name, reason)
 
     def get_commit_aliases(self):
@@ -159,7 +159,7 @@ class Review(object):
         self.commit_aliases[alias] = sha1
 
     def unset_commit_alias(self, alias):
-      del self.commit_aliases[alias]
+        del self.commit_aliases[alias]
 
     def expand_commit_name(self, name):
         return self.repo.expand_commit_name(name, self.commit_aliases)

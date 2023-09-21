@@ -55,7 +55,7 @@ class Config(object):
             value = self.get(name)
         except NoSuchConfigError:
             if default == NoSuchConfigError:
-                raise # re-raise the original error
+                raise  # re-raise the original error
             return default
 
         if value.lower() == "true":
@@ -88,18 +88,18 @@ class Config(object):
 def parse(config_output: bytes) -> Config:
     config = Config()
 
-    lines = config_output.decode("utf-8").split('\n')
+    lines = config_output.decode("utf-8").split("\n")
     for line in lines:
         if not line:
             continue
-        (name, value) = line.split('=', 1)
+        (name, value) = line.split("=", 1)
         config.add(name, value)
 
     return config
 
 
 def _load(where: str) -> Config:
-    cmd = [constants.GIT_EXE, where, 'config', '--list']
+    cmd = [constants.GIT_EXE, where, "config", "--list"]
     cmd_out = proc.run_simple_cmd(cmd)
     return parse(cmd_out)
 
@@ -107,20 +107,20 @@ def _load(where: str) -> Config:
 def load(git_dir: Path) -> Config:
     # This will return the merged configuration from the specified repository,
     # as well as the user's global config and the system config
-    where = '--git-dir=' + str(git_dir)
+    where = "--git-dir=" + str(git_dir)
     return _load(where)
 
 
 def load_file(path: Path) -> Config:
-    where = '--file=' + str(path)
+    where = "--file=" + str(path)
     return _load(where)
 
 
 def load_global() -> Config:
-    where = '--global'
+    where = "--global"
     return _load(where)
 
 
 def load_system() -> Config:
-    where = '--system'
+    where = "--system"
     return _load(where)

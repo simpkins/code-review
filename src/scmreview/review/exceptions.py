@@ -20,4 +20,4 @@ class ReviewError(Exception):
 
 class NoCurrentEntryError(ReviewError):
     def __init__(self):
-        ReviewError.__init__(self, 'no current entry to process')
+        ReviewError.__init__(self, "no current entry to process")

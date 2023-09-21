@@ -36,7 +36,7 @@ class ArgCommand(command.Command):
 
         if num_args > num_arg_types:
             trailing_args = args[num_arg_types:]
-            msg = 'trailing arguments: ' + tokenize.escape_args(trailing_args)
+            msg = "trailing arguments: " + tokenize.escape_args(trailing_args)
             raise CommandArgumentsError(msg)
 
         parsed_args = ParsedArgs()
@@ -51,26 +51,25 @@ class ArgCommand(command.Command):
             # The optional flag on arguments after this doesn't matter.)
             arg_type = self.arg_types[num_args]
             if not arg_type.is_optional():
-                msg = 'missing %s' % (arg_type.get_hr_name(),)
+                msg = "missing %s" % (arg_type.get_hr_name(),)
                 raise CommandArgumentsError(msg)
 
         for n in range(num_args, num_arg_types):
             arg_type = self.arg_types[n]
-            setattr(parsed_args, arg_type.get_name(),
-                    arg_type.get_default_value())
+            setattr(parsed_args, arg_type.get_name(), arg_type.get_default_value())
 
         return self.run_parsed(cli_obj, name, parsed_args)
 
     def help(self, cli_obj, name, args, line):
         args = args[1:]
         syntax = name
-        end = ''
+        end = ""
         for arg in self.arg_types:
             if arg.is_optional():
-                syntax += ' [<%s>' % (arg.get_name(),)
-                end += ']'
+                syntax += " [<%s>" % (arg.get_name(),)
+                end += "]"
             else:
-                syntax += ' <%s>' % (arg.get_name(),)
+                syntax += " <%s>" % (arg.get_name(),)
         syntax += end
 
         cli_obj.output(syntax)
@@ -99,15 +98,15 @@ class Argument(object):
         self.default = None
         self.optional = False
 
-        for (kwname, kwvalue) in kwargs.items():
-            if kwname == 'default':
+        for kwname, kwvalue in kwargs.items():
+            if kwname == "default":
                 self.default = kwvalue
-            elif kwname == 'hr_name':
+            elif kwname == "hr_name":
                 self.hr_name = kwvalue
-            elif kwname == 'optional':
+            elif kwname == "optional":
                 self.optional = kwvalue
             else:
-                raise TypeError('unknown keyword argument %r' % (kwname,))
+                raise TypeError("unknown keyword argument %r" % (kwname,))
 
     def get_name(self):
         return self.name
@@ -141,10 +140,10 @@ class IntArgument(Argument):
         self.max = None
 
         arg_kwargs = {}
-        for (kwname, kwvalue) in kwargs.items():
-            if kwname == 'min':
+        for kwname, kwvalue in kwargs.items():
+            if kwname == "min":
                 self.min = kwvalue
-            elif kwname == 'max':
+            elif kwname == "max":
                 self.max = max
             else:
                 arg_kwargs[kwname] = kwvalue
@@ -155,14 +154,14 @@ class IntArgument(Argument):
         try:
             value = int(arg)
         except ValueError:
-            msg = '%s must be an integer' % (self.get_hr_name(),)
+            msg = "%s must be an integer" % (self.get_hr_name(),)
             raise CommandArgumentsError(msg)
 
         if self.min != None and value < self.min:
-            msg = '%s must be greater than %s' % (self.get_hr_name(), self.min)
+            msg = "%s must be greater than %s" % (self.get_hr_name(), self.min)
             raise CommandArgumentsError(msg)
         if self.max != None and value > self.max:
-            msg = '%s must be less than %s' % (self.get_hr_name(), self.max)
+            msg = "%s must be less than %s" % (self.get_hr_name(), self.max)
             raise CommandArgumentsError(msg)
 
         return value

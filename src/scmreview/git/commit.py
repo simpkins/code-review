@@ -31,14 +31,14 @@ class GitTimezone(datetime.tzinfo):
     This class represents the timezone part of a git timestamp.
     Timezones are represented as "-HHMM" or "+HHMM".
     """
+
     def __init__(self, tz_str):
         self.name = tz_str
 
         tz = int(tz_str)
         min_offset = tz % 100
         hour_offset = tz / 100
-        self.offset = datetime.timedelta(hours = hour_offset,
-                                         minutes = min_offset)
+        self.offset = datetime.timedelta(hours=hour_offset, minutes=min_offset)
 
     def utcoffset(self, dt):
         return self.offset
@@ -56,13 +56,14 @@ class AuthorInfo(object):
     associated with a commit.  It contains a name, email address, and
     timestamp.
     """
+
     def __init__(self, real_name, email, timestamp):
         self.realName = real_name
         self.email = email
         self.timestamp = timestamp
 
     def __str__(self):
-        return '%s <%s> %s' % (self.realName, self.email, self.timestamp)
+        return "%s <%s> %s" % (self.realName, self.email, self.timestamp)
 
 
 class Commit(git_obj.Object):
@@ -71,6 +72,7 @@ class Commit(git_obj.Object):
 
     Commit objects always contain fully parsed commit information.
     """
+
     def __init__(
         self,
         repo: git_repo.Repository,
@@ -79,7 +81,7 @@ class Commit(git_obj.Object):
         parents,
         author,
         committer,
-        comment
+        comment,
     ):
         git_obj.Object.__init__(self, repo, sha1, constants.OBJ_COMMIT)
         self.tree = tree
@@ -125,12 +127,12 @@ class Commit(git_obj.Object):
         return self.comment
 
     def getSummary(self):
-        return self.comment.split('\n', 1)[0]
+        return self.comment.split("\n", 1)[0]
 
 
 def _parse_timestamp(value):
     # Note: we may raise ValueError to the caller
-    (timestamp_str, tz_str) = value.split(' ', 1)
+    (timestamp_str, tz_str) = value.split(" ", 1)
 
     timestamp = int(timestamp_str)
     tz = GitTimezone(tz_str)
@@ -140,21 +142,21 @@ def _parse_timestamp(value):
 
 def _parse_author(commit_name, value, type):
     try:
-        (real_name, rest) = value.split(' <', 1)
+        (real_name, rest) = value.split(" <", 1)
     except ValueError:
-        msg = 'error parsing %s: no email address found' % (type,)
+        msg = "error parsing %s: no email address found" % (type,)
         raise BadCommitError(commit_name, msg)
 
     try:
-        (email, rest) = rest.split('> ', 1)
+        (email, rest) = rest.split("> ", 1)
     except ValueError:
-        msg = 'error parsing %s: unterminated email address' % (type,)
+        msg = "error parsing %s: unterminated email address" % (type,)
         raise BadCommitError(commit_name, msg)
 
     try:
         timestamp = _parse_timestamp(rest)
     except ValueError:
-        msg = 'error parsing %s: malformatted timestamp' % (type,)
+        msg = "error parsing %s: malformatted timestamp" % (type,)
         raise BadCommitError(commit_name, msg)
 
     return AuthorInfo(real_name, email, timestamp)
@@ -168,42 +170,42 @@ def _parse_header(commit_name, header):
 
     # We accept the headers in any order.
     # git itself requires them to be tree, parents, author, committer
-    for line in header.split('\n'):
+    for line in header.split("\n"):
         try:
-            (name, value) = line.split(' ', 1)
+            (name, value) = line.split(" ", 1)
         except ValueError:
-            msg = 'bad commit header line %r' % (line)
+            msg = "bad commit header line %r" % (line)
             raise BadCommitError(commit_name, msg)
 
-        if name == 'tree':
+        if name == "tree":
             if tree:
-                msg = 'multiple trees specified'
+                msg = "multiple trees specified"
                 raise BadCommitError(commit_name, msg)
             tree = value
-        elif name == 'parent':
+        elif name == "parent":
             parents.append(value)
-        elif name == 'author':
+        elif name == "author":
             if author:
-                msg = 'multiple authors specified'
+                msg = "multiple authors specified"
                 raise BadCommitError(commit_name, msg)
             author = _parse_author(commit_name, value, name)
-        elif name == 'committer':
+        elif name == "committer":
             if committer:
-                msg = 'multiple committers specified'
+                msg = "multiple committers specified"
                 raise BadCommitError(commit_name, msg)
             committer = _parse_author(commit_name, value, name)
         else:
-            msg = 'unknown header field %r' % (name,)
+            msg = "unknown header field %r" % (name,)
             raise BadCommitError(commit_name, msg)
 
     if not tree:
-        msg = 'no tree specified'
+        msg = "no tree specified"
         raise BadCommitError(commit_name, msg)
     if not author:
-        msg = 'no author specified'
+        msg = "no author specified"
         raise BadCommitError(commit_name, msg)
     if not committer:
-        msg = 'no committer specified'
+        msg = "no committer specified"
         raise BadCommitError(commit_name, msg)
 
     return (tree, parents, author, committer)
@@ -218,7 +220,7 @@ def _get_current_tzinfo():
     tz_hour = abs(tz_sec) / 3600
     if tz_sec > 0:
         tz_hour *= -1
-    tz_str = '%+02d%02d' % (tz_hour, tz_min)
+    tz_str = "%+02d%02d" % (tz_hour, tz_min)
     return GitTimezone(tz_str)
 
 
@@ -228,11 +230,18 @@ def _get_bogus_author():
     # git timestamp
     now = time.localtime()
     current_tz = _get_current_tzinfo()
-    timestamp = datetime.datetime(now.tm_year, now.tm_mon, now.tm_mday,
-                                  now.tm_hour, now.tm_min, now.tm_sec, 0,
-                                  current_tz)
+    timestamp = datetime.datetime(
+        now.tm_year,
+        now.tm_mon,
+        now.tm_mday,
+        now.tm_hour,
+        now.tm_min,
+        now.tm_sec,
+        0,
+        current_tz,
+    )
 
-    return AuthorInfo('No Author Yet', 'nobody@localhost', timestamp)
+    return AuthorInfo("No Author Yet", "nobody@localhost", timestamp)
 
 
 def get_index_commit(repo):
@@ -245,10 +254,11 @@ def get_index_commit(repo):
     parents = [constants.COMMIT_HEAD]
     author = _get_bogus_author()
     committer = _get_bogus_author()
-    comment = 'Uncommitted changes in the index'
+    comment = "Uncommitted changes in the index"
     # XXX: it might be better to define a separate class for this
-    return Commit(repo, constants.COMMIT_INDEX, tree, parents,
-                  author, committer, comment)
+    return Commit(
+        repo, constants.COMMIT_INDEX, tree, parents, author, committer, comment
+    )
 
 
 def get_working_dir_commit(repo):
@@ -262,10 +272,9 @@ def get_working_dir_commit(repo):
     parents = [constants.COMMIT_INDEX]
     author = _get_bogus_author()
     committer = _get_bogus_author()
-    comment = 'Uncomitted changes in the working directory'
+    comment = "Uncomitted changes in the working directory"
     # XXX: it might be better to define a separate class for this
-    return Commit(repo, constants.COMMIT_WD, tree, parents, author, committer,
-                  comment)
+    return Commit(repo, constants.COMMIT_WD, tree, parents, author, committer, comment)
 
 
 def get_commit(repo, name):
@@ -279,19 +288,19 @@ def get_commit(repo, name):
     sha1 = repo.getCommitSha1(name)
 
     # Run "git cat-file commit <name>"
-    cmd = ['cat-file', 'commit', str(name)]
+    cmd = ["cat-file", "commit", str(name)]
     out = repo.runSimpleGitCmd(cmd)
 
     # Split the header and body
     try:
-        (header, body) = out.split('\n\n', 1)
+        (header, body) = out.split("\n\n", 1)
     except ValueError:
         # split() resulted in just one value
         # Treat it as headers, with an empty body
         header = out
-        if header and header[-1] == '\n':
+        if header and header[-1] == "\n":
             header = header[:-1]
-        body = ''
+        body = ""
 
     # Parse the header
     (tree, parents, author, committer) = _parse_header(name, header)
@@ -300,18 +309,25 @@ def get_commit(repo, name):
 
 
 def log_commit_paths(repo, rev_args, path_args):
-    sep = '-+*=' * 20
-    format_arg = ('commit %H%n'
-                  'tree %T%n'
-                  'parents %P%n'
-                  'author %an <%ae> %ad%n'
-                  'committer %cn <%ce> %cd%n'
-                  '%n'
-                  '%B%n'
-                  + sep)
-    args = (['log', '--date=raw',] + list(rev_args) +
-            ['--pretty=tformat:' + format_arg, '--'] +
-            list(path_args))
+    sep = "-+*=" * 20
+    format_arg = (
+        "commit %H%n"
+        "tree %T%n"
+        "parents %P%n"
+        "author %an <%ae> %ad%n"
+        "committer %cn <%ce> %cd%n"
+        "%n"
+        "%B%n" + sep
+    )
+    args = (
+        [
+            "log",
+            "--date=raw",
+        ]
+        + list(rev_args)
+        + ["--pretty=tformat:" + format_arg, "--"]
+        + list(path_args)
+    )
 
     # FIXME: Direct stderr to a pipe, and read stdout and stderr simultaneously
     p = repo.popenGitCmd(args, stderr=None)
@@ -322,79 +338,80 @@ def log_commit_paths(repo, rev_args, path_args):
             break
         line = line.rstrip()
 
-        parts = line.split(' ', 1)
-        if parts[0] != 'commit':
-            raise Exception('expected commit line, found %r' % (line,))
+        parts = line.split(" ", 1)
+        if parts[0] != "commit":
+            raise Exception("expected commit line, found %r" % (line,))
         sha1 = parts[1]
 
         line = p.stdout.readline().rstrip()
-        parts = line.split(' ', 1)
-        if parts[0] != 'tree':
-            raise Exception('expected tree line, found %r' % (line,))
+        parts = line.split(" ", 1)
+        if parts[0] != "tree":
+            raise Exception("expected tree line, found %r" % (line,))
         tree = parts[1]
 
         line = p.stdout.readline().rstrip()
-        parts = line.split(' ')
-        if parts[0] != 'parents':
-            raise Exception('expected parents line, found %r' % (line,))
+        parts = line.split(" ")
+        if parts[0] != "parents":
+            raise Exception("expected parents line, found %r" % (line,))
         parents = parts[1:]
 
         line = p.stdout.readline().rstrip()
-        parts = line.split(' ', 1)
-        if parts[0] != 'author':
-            raise Exception('expected author line, found %r' % (line,))
+        parts = line.split(" ", 1)
+        if parts[0] != "author":
+            raise Exception("expected author line, found %r" % (line,))
         author = _parse_author(sha1, parts[1], parts[0])
 
         line = p.stdout.readline().rstrip()
-        parts = line.split(' ', 1)
-        if parts[0] != 'committer':
-            raise Exception('expected committer line, found %r' % (line,))
+        parts = line.split(" ", 1)
+        if parts[0] != "committer":
+            raise Exception("expected committer line, found %r" % (line,))
         committer = _parse_author(sha1, parts[1], parts[0])
 
         body_lines = []
-        terminator = sep + '\n'
+        terminator = sep + "\n"
         while True:
             line = p.stdout.readline()
             if not line:
-                raise Exception('unexpected end of log output')
+                raise Exception("unexpected end of log output")
             if line == terminator:
                 break
             body_lines.append(line)
 
-        assert body_lines[-1] == '\n'
-        body = ''.join(body_lines[:-1])
+        assert body_lines[-1] == "\n"
+        body = "".join(body_lines[:-1])
 
         yield Commit(repo, sha1, tree, parents, author, committer, body)
 
     retcode = p.wait()
     if retcode != 0:
-        raise Exception('git log returned a non-zero status')
+        raise Exception("git log returned a non-zero status")
 
 
 def split_rev_name(name):
     """
-      Split a revision name into a ref name and suffix.
+    Split a revision name into a ref name and suffix.
 
-      The suffix starts at the first '^' or '~' character.  These characters
-      may not be part of a ref name.  See git-rev-parse(1) for full details.
+    The suffix starts at the first '^' or '~' character.  These characters
+    may not be part of a ref name.  See git-rev-parse(1) for full details.
 
-      For example:
-          split_ref_name('HEAD^^') --> ('HEAD', '^^')
-          split_ref_name('HEAD~10') --> ('HEAD', '~')
-          split_ref_name('master') --> ('master', '')
-          split_ref_name('master^{1}') --> ('master', '^{1}')
+    For example:
+        split_ref_name('HEAD^^') --> ('HEAD', '^^')
+        split_ref_name('HEAD~10') --> ('HEAD', '~')
+        split_ref_name('master') --> ('master', '')
+        split_ref_name('master^{1}') --> ('master', '^{1}')
     """
     # This command shouldn't be called with commit ranges.
-    if name.find('..') > 0:
-        raise BadRevisionNameError(name, 'specifies a commit range, '
-                                   'not a single commit')
+    if name.find("..") > 0:
+        raise BadRevisionNameError(
+            name, "specifies a commit range, " "not a single commit"
+        )
 
-    caret_idx = name.find('^')
-    tilde_idx = name.find('~')
+    caret_idx = name.find("^")
+    tilde_idx = name.find("~")
     if caret_idx < 0:
         if tilde_idx < 0:
             # No suffix
-            return (name, '')
+            return (name, "")
         else:
             idx = tilde_idx
     else:

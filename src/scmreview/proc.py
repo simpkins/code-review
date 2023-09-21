@@ -51,11 +51,11 @@ class ProcError(Exception):
 
 class CmdFailedError(ProcError):
     def __init__(self, args, msg, cmd_err=None):
-        msg = 'command %s %s' % (args, msg)
+        msg = "command %s %s" % (args, msg)
         if cmd_err:
             err_str = cmd_err.decode("utf-8", errors="replace")
-            indented_err = '  ' + '\n  '.join(err_str.splitlines())
-            msg = msg + '\nstderr:\n' + indented_err
+            indented_err = "  " + "\n  ".join(err_str.splitlines())
+            msg = msg + "\nstderr:\n" + indented_err
         ProcError.__init__(self, msg)
         # Note: don't call this self.args
         # The builtin Exception class uses self.args for its own data
@@ -67,7 +67,7 @@ class CmdExitCodeError(CmdFailedError):
     def __init__(self, args, exit_code, expected_rc=None, cmd_err=None):
         # XXX: might be nicer to join args together.
         # We should ideally perform some quoting, then, however
-        msg = 'exited with exit code %s' % (exit_code,)
+        msg = "exited with exit code %s" % (exit_code,)
         CmdFailedError.__init__(self, args, msg, cmd_err)
         self.exitCode = exit_code
         self.expectedExitCode = expected_rc
@@ -77,11 +77,10 @@ class CmdTerminatedError(CmdFailedError):
     def __init__(self, args, signum, expected_sig=None, cmd_err=None):
         # XXX: might be nicer to join args together.
         # We should ideally perform some quoting, then, however
-        msg = 'was terminated by signal %s' % (signum,)
+        msg = "was terminated by signal %s" % (signum,)
         CmdFailedError.__init__(self, args, msg, cmd_err)
         self.signal = signum
         self.expectedSignal = expected_sig
-
 
 
 def _check_result(args, result, expected, cmd_err, ex_class):
@@ -100,13 +99,11 @@ def _check_result(args, result, expected, cmd_err, ex_class):
 
 
 def check_exit_code(args, exit_code, expected_rc, cmd_err):
-    return _check_result(args, exit_code, expected_rc, cmd_err,
-                         CmdExitCodeError)
+    return _check_result(args, exit_code, expected_rc, cmd_err, CmdExitCodeError)
 
 
 def check_signal(args, signum, expected_sig, cmd_err):
-    return _check_result(args, signum, expected_sig, cmd_err,
-                         CmdTerminatedError)
+    return _check_result(args, signum, expected_sig, cmd_err, CmdTerminatedError)
 
 
 def check_status(args, status, expected_rc=0, expected_sig=None, cmd_err=None):
@@ -116,32 +113,43 @@ def check_status(args, status, expected_rc=0, expected_sig=None, cmd_err=None):
         check_signal(args, -status, expected_sig, cmd_err)
 
 
-def popen_cmd(args, cwd=None, env=None, stdin=subprocess.DEVNULL,
-              stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+def popen_cmd(
+    args,
+    cwd=None,
+    env=None,
+    stdin=subprocess.DEVNULL,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+):
     """
     Wrapper around subprocess.Popen() that also accepts filenames
     for stdin/stdout/stderr.
     """
     if isinstance(stdin, str):
-        stdin = open(stdin, 'r')
+        stdin = open(stdin, "r")
     if isinstance(stdout, str):
-        stdout = open(stdout, 'w')
+        stdout = open(stdout, "w")
     if isinstance(stderr, str):
-        stderr = open(stderr, 'w')
+        stderr = open(stderr, "w")
 
     # close_fds=True is generally desirable, but isn't supported on Windows
-    close_fds = (platform.system() != "Windows")
-    p = subprocess.Popen(args, stdin=stdin, stdout=stdout, stderr=stderr,
-                         cwd=cwd, env=env)
+    close_fds = platform.system() != "Windows"
+    p = subprocess.Popen(
+        args, stdin=stdin, stdout=stdout, stderr=stderr, cwd=cwd, env=env
+    )
     return p
 
 
 def run_cmd(
-    args, cwd=None, env=None, expected_rc=0, expected_sig=None,
+    args,
+    cwd=None,
+    env=None,
+    expected_rc=0,
+    expected_sig=None,
     stdin=subprocess.DEVNULL,
     stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE
-    ):
+    stderr=subprocess.PIPE,
+):
     """
     run_cmd(args, cwd=None, env=None, expected_rc=0, expected_sig=None) -->
                 (exit_code, stdoutdata, stderrdata)
@@ -157,8 +165,7 @@ def run_cmd(
     values.  If the command is terminated with a signal not in expected_sig, a
     CmdTerminatedError will be raised.
     """
-    p = popen_cmd(args, cwd=cwd, env=env, stdin=stdin, stdout=stdout,
-                  stderr=stderr)
+    p = popen_cmd(args, cwd=cwd, env=env, stdin=stdin, stdout=stdout, stderr=stderr)
     (cmd_out, cmd_err) = p.communicate()
 
     status = p.wait()
@@ -174,14 +181,14 @@ def run_simple_cmd(args, cwd=None, env=None, stdout=subprocess.PIPE):
     value of 0, and output no data on stderr.  If any of these conditions fail,
     a CmdFailedError is raised.
     """
-    (exit_code, cmd_out, cmd_err) = \
-            run_cmd(args, cwd=cwd, env=env, expected_rc=0, expected_sig=None,
-                    stdout=stdout)
+    (exit_code, cmd_out, cmd_err) = run_cmd(
+        args, cwd=cwd, env=env, expected_rc=0, expected_sig=None, stdout=stdout
+    )
 
     # exit_code is guaranteed to be 0, since we set expected_rc to 0
     # We only have to check if anything was output on stderr
     if cmd_err:
-        msg = 'printed error message on stderr'
+        msg = "printed error message on stderr"
         raise CmdFailedError(args, msg, cmd_err)
 
     return cmd_out
@@ -200,18 +207,18 @@ def run_oneline_cmd(args, cwd=None, env=None):
     cmd_out = run_simple_cmd(args, cwd=cwd, env=env)
 
     if not cmd_out:
-        msg = 'did not print any output'
+        msg = "did not print any output"
         raise CmdFailedError(args, msg)
 
-    lines = cmd_out.split(b'\n')
+    lines = cmd_out.split(b"\n")
     num_lines = len(lines)
     if num_lines < 2:
         # XXX: It would be nice to include cmd_out in the exception
-        msg = 'did not print a terminating newline'
+        msg = "did not print a terminating newline"
         raise CmdFailedError(args, msg)
     elif num_lines > 2 or lines[1]:
         # XXX: It would be nice to include cmd_out in the exception
-        msg = 'printed more than one line of output'
+        msg = "printed more than one line of output"
         raise CmdFailedError(args, msg)
 
     return lines[0]

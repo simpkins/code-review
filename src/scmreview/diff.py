@@ -17,6 +17,7 @@
 import re
 import sys
 
+
 class DiffParseError(Exception):
     def __init__(self, msg, line_num):
         Exception.__init__(self)
@@ -24,7 +25,7 @@ class DiffParseError(Exception):
         self.line_number = line_num
 
     def __str__(self):
-        return 'line %d: %s' % (self.line_number, self.message)
+        return "line %d: %s" % (self.line_number, self.message)
 
 
 def _adjust_index(i, length, dflt):
@@ -47,7 +48,7 @@ def _adjust_index(i, length, dflt):
 def debug(msg):
     # Comment this line out to enable debug messages
     return
-    print >> sys.stderr, 'DBG:', msg
+    print >> sys.stderr, "DBG:", msg
 
 
 class Range(object):
@@ -68,7 +69,7 @@ class Range(object):
         mylen = len(self)
         if isinstance(i, slice):
             if i.step != None and i.step != 1:
-                raise IndexError('non-contiguous slices are not allowed')
+                raise IndexError("non-contiguous slices are not allowed")
             start = _adjust_index(i.start, mylen, 0)
             stop = _adjust_index(i.stop, mylen, mylen)
         else:
@@ -81,7 +82,7 @@ class Range(object):
         return Range(self.start + start, self.start + stop)
 
     def __str__(self):
-        return '(%d,%d)' % (self.start, self.end)
+        return "(%d,%d)" % (self.start, self.end)
 
     def format_unified(self):
         """
@@ -92,10 +93,10 @@ class Range(object):
         """
         if self.end == self.start + 1:
             # 1-length ranges are represented with just a single number
-            return '%d' % (self.start,)
+            return "%d" % (self.start,)
         else:
             assert self.end >= self.start
-            return '%d,%d' % (self.start, self.end - self.start)
+            return "%d,%d" % (self.start, self.end - self.start)
 
     @staticmethod
     def parse_unified(value):
@@ -104,7 +105,7 @@ class Range(object):
 
         May raise ValueError if the string is malformatted.
         """
-        components = value.split(',')
+        components = value.split(",")
         if len(components) == 1:
             # If the range has just a single entry, it comprises a single line.
             first = int(components[0])
@@ -114,15 +115,15 @@ class Range(object):
             first = int(components[0])
             length = int(components[0])
         else:
-            raise ValueError('invalid range string %r' % (value,))
+            raise ValueError("invalid range string %r" % (value,))
 
         return Range(first, first + length)
 
 
 class Section(object):
-    TYPE_REMOVED = '-'
-    TYPE_ADDED   = '+'
-    TYPE_CONTEXT = ' '
+    TYPE_REMOVED = "-"
+    TYPE_ADDED = "+"
+    TYPE_CONTEXT = " "
 
     def __init__(self, type):
         self.type = type
@@ -137,7 +138,7 @@ class Section(object):
         mylen = len(self.lines)
         if isinstance(i, slice):
             if i.step != None and i.step != 1:
-                raise IndexError('non-contiguous slices are not allowed')
+                raise IndexError("non-contiguous slices are not allowed")
             start = _adjust_index(i.start, mylen, 0)
             stop = _adjust_index(i.stop, mylen, mylen)
         else:
@@ -173,6 +174,7 @@ class SectionIterator(object):
 
     Each call to next() returns a section of added, removed, or context lines.
     """
+
     def __init__(self, hunk):
         self.hunk = hunk
         self.index = 0
@@ -223,6 +225,7 @@ class Hunk(object):
     """
     A diff hunk.
     """
+
     def __init__(self, old_range, new_range):
         self.old_range = old_range
         self.new_range = new_range
@@ -240,9 +243,9 @@ class Hunk(object):
 
         current = None
 
-        debug('split:')
+        debug("split:")
         for section in self.section_iter():
-            debug('  -%s +%s' % (section.old_range, section.new_range))
+            debug("  -%s +%s" % (section.old_range, section.new_range))
             if section.type == Section.TYPE_CONTEXT:
                 num_lines = len(section.lines)
                 if current is None:
@@ -250,21 +253,27 @@ class Hunk(object):
                     if num_lines > context:
                         # Some of the initial context should be trimmed
                         current = [section.tail(context)]
-                        debug('    trimmed to -%s +%s' %
-                              (current[0].old_range, current[0].new_range))
+                        debug(
+                            "    trimmed to -%s +%s"
+                            % (current[0].old_range, current[0].new_range)
+                        )
                     else:
                         current = [section]
                 else:
                     if num_lines > context * 2:
                         # This context section is large enough for us to split
                         current.append(section.head(context))
-                        debug('    split: -%s +%s' %
-                              (current[-1].old_range, current[-1].new_range))
+                        debug(
+                            "    split: -%s +%s"
+                            % (current[-1].old_range, current[-1].new_range)
+                        )
                         hunk = Hunk.from_section_list(current)
                         hunks.append(hunk)
                         current = [section.tail(context)]
-                        debug('           -%s +%s' %
-                              (current[0].old_range, current[0].new_range))
+                        debug(
+                            "           -%s +%s"
+                            % (current[0].old_range, current[0].new_range)
+                        )
                     else:
                         # Can't split, just append this section
                         current.append(section)
@@ -273,7 +282,7 @@ class Hunk(object):
                     current = []
                 current.append(section)
 
-        assert current is not None # non-empty hunks are not allowed
+        assert current is not None  # non-empty hunks are not allowed
         # Create a hunk from the sections remaining in current.
         if len(current) == 1 and current[0].type == Section.TYPE_CONTEXT:
             # This is just a context section that was split from the end of the
@@ -332,11 +341,11 @@ class UnifiedDiffParser(object):
         self.line_num = 0
         self.diff = Diff()
 
-        self.old_filename_re = re.compile(r'^--- (.*)$')
-        self.new_filename_re = re.compile(r'^\+\+\+ (.*)$')
-        self.hunk_re = re.compile(r'^@@ -(.*) \+(.*) @@$')
+        self.old_filename_re = re.compile(r"^--- (.*)$")
+        self.new_filename_re = re.compile(r"^\+\+\+ (.*)$")
+        self.hunk_re = re.compile(r"^@@ -(.*) \+(.*) @@$")
 
-        self.eofError = 'no diff information read'
+        self.eofError = "no diff information read"
 
     def parse(self):
         try:
@@ -347,8 +356,7 @@ class UnifiedDiffParser(object):
             # self.eofError will contain an error message.  Otherwise,
             # self.eofError will be None.
             if self.eofError != None:
-                self.parse_error('unexpected end of input: ' +
-                                 str(self.eofError))
+                self.parse_error("unexpected end of input: " + str(self.eofError))
 
         return self.diff
 
@@ -357,12 +365,11 @@ class UnifiedDiffParser(object):
 
         while True:
             line = self.next_line()
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 self.parse_hunk_start(line)
                 continue
 
-            if (line.startswith('-') or line.startswith('+') or
-                line.startswith(' ')):
+            if line.startswith("-") or line.startswith("+") or line.startswith(" "):
                 # removed, added, or context line
                 current_hunk = self.diff.files[-1].hunks[-1]
                 current_hunk.lines.append(line)
@@ -392,9 +399,13 @@ class UnifiedDiffParser(object):
             # Unknown line.  Make sure it doesn't look like a valid diff line.
             # (Normally this is just a header printed out in between files.
             # git and subversion print such headers.)
-            if (line.startswith('-') or line.startswith('+') or
-                line.startswith(' ') or line.startswith('@@')):
-                self.parse_error('unexpected diff line after non-diff section')
+            if (
+                line.startswith("-")
+                or line.startswith("+")
+                or line.startswith(" ")
+                or line.startswith("@@")
+            ):
+                self.parse_error("unexpected diff line after non-diff section")
 
         # We found the start of the next file.  Parse the file header
         self.parse_file_header(m)
@@ -404,7 +415,7 @@ class UnifiedDiffParser(object):
         old_path = match.group(1)
 
         # Read the new path
-        self.eofError = 'expected new filename'
+        self.eofError = "expected new filename"
         line = self.next_line()
         match = self.new_filename_re.match(line)
         if not match:
@@ -414,9 +425,9 @@ class UnifiedDiffParser(object):
         self.diff.files.append(FileSection(old_path, new_path))
 
         # Read the start of the first hunk
-        self.eofError = 'expected hunk start'
+        self.eofError = "expected hunk start"
         line = self.next_line()
-        if not line.startswith('@@'):
+        if not line.startswith("@@"):
             self.parse_error(self.eofError)
         self.parse_hunk_start(line)
 
@@ -428,14 +439,14 @@ class UnifiedDiffParser(object):
 
         # TODO: it would be nice to warn if there is no newline
         # at the end of the file
-        if line.endswith('\n'):
+        if line.endswith("\n"):
             line = line[:-1]
         return line
 
     def parse_hunk_start(self, line):
         m = self.hunk_re.match(line)
         if not m:
-            self.parse_error('malformed hunk start line')
+            self.parse_error("malformed hunk start line")
 
         old_range = self.parse_range(m.group(1))
         new_range = self.parse_range(m.group(2))
@@ -447,7 +458,7 @@ class UnifiedDiffParser(object):
         try:
             return Range.parse_unified(value)
         except ValueError:
-            self.parse_error('invalid range %r' % (value,))
+            self.parse_error("invalid range %r" % (value,))
 
     def parse_error(self, msg):
         raise DiffParseError(msg, self.line_num)
@@ -462,15 +473,16 @@ class UnifiedDiffFormatter(object):
             self.writeFile(file)
 
     def writeFile(self, file):
-        self.output.write('--- %s\n' % (file.old_path,))
-        self.output.write('+++ %s\n' % (file.new_path,))
+        self.output.write("--- %s\n" % (file.old_path,))
+        self.output.write("+++ %s\n" % (file.new_path,))
         for hunk in file.hunks:
             self.writeHunk(hunk)
 
     def writeHunk(self, hunk):
-        self.output.write('@@ -%s +%s @@\n' %
-                          (hunk.old_range.format_unified(),
-                           hunk.new_range.format_unified()))
+        self.output.write(
+            "@@ -%s +%s @@\n"
+            % (hunk.old_range.format_unified(), hunk.new_range.format_unified())
+        )
         for line in hunk.lines:
             self.output.write(line)
-            self.output.write('\n')
+            self.output.write("\n")

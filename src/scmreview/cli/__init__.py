@@ -40,10 +40,11 @@ class CLI(object):
     (We define our own rather than using the standard Python cmd module,
     since cmd.Cmd doesn't provide all the features we want.)
     """
+
     def __init__(self):
         # Configuration, modifiable by subclasses
-        self.completekey = 'tab'
-        self.prompt = '> '
+        self.completekey = "tab"
+        self.prompt = "> "
 
         # Normally, empty lines and EOF won't be stored in self.prev_line
         # (the contents of self.prev_line remain be unchanged when one of these
@@ -69,7 +70,7 @@ class CLI(object):
 
     def add_command(self, name, command):
         if name in self.commands:
-            raise KeyError('command %r already exists' % (name,))
+            raise KeyError("command %r already exists" % (name,))
         self.commands[name] = command
 
     def get_command(self, name):
@@ -99,16 +100,16 @@ class CLI(object):
             raise AmbiguousCommandError(name, matches)
         return self.commands[matches[0]]
 
-    def output(self, msg='', newline=True):
+    def output(self, msg="", newline=True):
         # XXX: We always write to sys.stdout for now.
         # This isn't configurable, since they python readline module
         # always uses sys.stdin and sys.stdout
         sys.stdout.write(msg)
         if newline:
-            sys.stdout.write('\n')
+            sys.stdout.write("\n")
 
     def output_error(self, msg):
-        sys.stderr.write('error: %s\n' % (msg,))
+        sys.stderr.write("error: %s\n" % (msg,))
 
     def readline(self):
         try:
@@ -208,11 +209,11 @@ class CLI(object):
         return self.run_command(self.prev_line)
 
     def handle_unknown_command(self, cmd):
-        self.output_error('%s: no such command' % (cmd,))
+        self.output_error("%s: no such command" % (cmd,))
         return -1
 
     def handle_ambiguous_command(self, cmd, matches):
-        self.output_error('%s: ambiguous command: %s' % (cmd, matches))
+        self.output_error("%s: ambiguous command: %s" % (cmd, matches))
         return -1
 
     def handle_command_exception(self):
@@ -233,7 +234,7 @@ class CLI(object):
             try:
                 self.completions = self.get_completions(text)
             except:
-                self.output_error('error getting completions')
+                self.output_error("error getting completions")
                 tb = traceback.format_exc()
                 self.output_error(tb)
                 return None
@@ -253,7 +254,7 @@ class CLI(object):
 
         (cmd_name, args, part) = self.parse_partial_line(line)
         if part == None:
-            part = ''
+            part = ""
 
         if cmd_name == None:
             assert not args
@@ -285,16 +286,17 @@ class CLI(object):
                 # screwed up and we are ignoring some of the results.
                 continue
 
-            readline_match = text + tokenize.escape_arg(match[len(part):])
+            readline_match = text + tokenize.escape_arg(match[len(part) :])
             if add_space:
-                readline_match += ' '
+                readline_match += " "
             ret.append(readline_match)
 
         return ret
 
     def complete_command(self, text, add_space=False):
-        matches = [cmd_name for cmd_name in self.commands.keys()
-                   if cmd_name.startswith(text)]
+        matches = [
+            cmd_name for cmd_name in self.commands.keys() if cmd_name.startswith(text)
+        ]
         if add_space:
             matches = [(match, True) for match in matches]
         return matches
@@ -332,7 +334,7 @@ class CLI(object):
             return
         self._old_completer = readline.get_completer()
         readline.set_completer(self.complete)
-        readline.parse_and_bind(self.completekey+": complete")
+        readline.parse_and_bind(self.completekey + ": complete")
 
     def cleanup_readline(self):
         if readline is None:

@@ -20,7 +20,7 @@ class GitError(Exception):
 
 class NotARepoError(GitError):
     def __init__(self, repo):
-        msg = 'not a git repository: %s' % (repo,)
+        msg = "not a git repository: %s" % (repo,)
         GitError.__init__(self, msg)
         self.repo = repo
 
@@ -28,7 +28,7 @@ class NotARepoError(GitError):
 class NoWorkingDirError(GitError):
     def __init__(self, repo, msg=None):
         if msg is None:
-            msg = '%s does not have a working directory' % (repo,)
+            msg = "%s does not have a working directory" % (repo,)
         GitError.__init__(self, msg)
         self.repo = repo
 
@@ -60,55 +60,55 @@ class MultipleConfigError(GitError):
 
 class BadCommitError(GitError):
     def __init__(self, commit_name, msg):
-        GitError.__init__(self, 'bad commit %r: %s' % (commit_name, msg))
+        GitError.__init__(self, "bad commit %r: %s" % (commit_name, msg))
         self.commit = commit_name
         self.msg = msg
 
 
 class NoSuchObjectError(GitError):
-    def __init__(self, name, type='object'):
+    def __init__(self, name, type="object"):
         GitError.__init__(self)
         self.type = type
         self.name = name
 
     def __str__(self):
-        return 'no such %s %r' % (self.type, self.name)
+        return "no such %s %r" % (self.type, self.name)
 
 
 class NoSuchCommitError(NoSuchObjectError):
     def __init__(self, name):
-        NoSuchObjectError.__init__(self, name, 'commit')
+        NoSuchObjectError.__init__(self, name, "commit")
 
 
 class NoSuchBlobError(NoSuchObjectError):
     def __init__(self, name):
-        NoSuchObjectError.__init__(self, name, 'blob')
+        NoSuchObjectError.__init__(self, name, "blob")
 
 
 class NotABlobError(GitError):
     def __init__(self, name):
-        GitError.__init__(self, '%r does not refer to a blob' % (name))
+        GitError.__init__(self, "%r does not refer to a blob" % (name))
         self.name = name
+
 
 class BadRevisionNameError(GitError):
     def __init__(self, name, msg):
-        GitError.__init__(self, 'bad revision name %r: %s' % (name, msg))
+        GitError.__init__(self, "bad revision name %r: %s" % (name, msg))
         self.name = name
         self.msg = msg
 
 
 class AmbiguousArgumentError(GitError):
     def __init__(self, arg_name, reason):
-        GitError.__init__(self, 'ambiguous argument %r: %s' %
-                          (arg_name, reason))
+        GitError.__init__(self, "ambiguous argument %r: %s" % (arg_name, reason))
         self.argName = arg_name
         self.reason = reason
 
 
 class PatchFailedError(GitError):
     def __init__(self, msg):
-        full_msg = 'failed to apply patch'
+        full_msg = "failed to apply patch"
         if msg:
-            full_msg = ':\n  '.join([full_msg] + msg.splitlines())
+            full_msg = ":\n  ".join([full_msg] + msg.splitlines())
         GitError.__init__(self, full_msg)
         self.msg = msg

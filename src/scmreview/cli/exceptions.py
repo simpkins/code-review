@@ -20,14 +20,13 @@ class CLIError(Exception):
 
 class NoSuchCommandError(CLIError):
     def __init__(self, cmd_name):
-        CLIError.__init__(self, 'no such command %r' % (cmd_name,))
+        CLIError.__init__(self, "no such command %r" % (cmd_name,))
         self.cmd = cmd_name
 
 
 class AmbiguousCommandError(CLIError):
     def __init__(self, cmd_name, matches):
-        msg = 'ambiguous command %r: possible matches: %r' % \
-                (cmd_name, matches)
+        msg = "ambiguous command %r: possible matches: %r" % (cmd_name, matches)
         CLIError.__init__(self, msg)
         self.cmd = cmd_name
         self.matches = matches

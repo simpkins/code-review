@@ -21,10 +21,10 @@ from .exceptions import *
 
 class Command(object):
     def run(self, cli, name, args, line):
-        raise NotImplementedError('subclasses of Command must implement run()')
+        raise NotImplementedError("subclasses of Command must implement run()")
 
     def help(self, cli, name, args, line):
-        raise NotImplementedError('subclasses of Command must implement help()')
+        raise NotImplementedError("subclasses of Command must implement help()")
 
     def complete(self, cli, name, args, text):
         # By default, no completion is performed
@@ -45,9 +45,9 @@ class HelpCommand(Command):
                 cli_obj.output_error(ex)
 
     def help(self, cli_obj, name, args, line):
-        cli_obj.output('%s [<command>]' % (args[0],))
+        cli_obj.output("%s [<command>]" % (args[0],))
         cli_obj.output()
-        cli_obj.output('Display help')
+        cli_obj.output("Display help")
 
     def complete(self, cli_obj, name, args, text):
         if len(args) == 1:

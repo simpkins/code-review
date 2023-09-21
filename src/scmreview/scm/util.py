@@ -25,9 +25,9 @@ import scmreview.git.repo
 
 def find_repo(path: Path) -> Optional[RepositoryBase]:
     ceiling_dirs = [Path(os.path.sep)]
-    ceiling_dirs_env = os.environ.get('GIT_CEILING_DIRECTORIES')
+    ceiling_dirs_env = os.environ.get("GIT_CEILING_DIRECTORIES")
     if ceiling_dirs_env:
-        ceiling_dirs.extend(Path(p) for p in ceiling_dirs_env.split(':'))
+        ceiling_dirs.extend(Path(p) for p in ceiling_dirs_env.split(":"))
 
     initial_path = path
     path = path.resolve(strict=False)
@@ -59,7 +59,7 @@ def _try_get_repo(path: Path) -> Optional[RepositoryBase]:
     #
     # This could be either an EdenSCM repository (EdenSCM was originally based
     # on Mercurial), or a pure Mercurial repository.
-    hg_dir = os.path.join(path, '.hg')
+    hg_dir = os.path.join(path, ".hg")
     if os.path.isdir(hg_dir):
         try:
             with open(os.path.join(hg_dir, "requires"), "r") as f:
@@ -74,7 +74,9 @@ def _try_get_repo(path: Path) -> Optional[RepositoryBase]:
 
         # Otherwise assume this is a vanilla Mercurial repository
         # TODO: Implement vanilla Mercurial support again.
-        raise Exception("this looks like a Mercurial repository, "
-                        "but Mercurial support is not available")
+        raise Exception(
+            "this looks like a Mercurial repository, "
+            "but Mercurial support is not available"
+        )
 
     return None

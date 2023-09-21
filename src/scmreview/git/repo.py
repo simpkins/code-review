@@ -31,7 +31,7 @@ from . import (
     commit as git_commit,
     config as config_mod,
     diff as git_diff,
-    obj as git_obj
+    obj as git_obj,
 )
 
 
@@ -44,13 +44,13 @@ class Repository(RepositoryBase):
         self.config = config
 
         self.__gitCmdEnv = os.environ.copy()
-        self.__gitCmdEnv['GIT_DIR'] = str(self.git_dir)
+        self.__gitCmdEnv["GIT_DIR"] = str(self.git_dir)
         if self.working_dir:
             self.__gitCmdCwd = self.working_dir
-            self.__gitCmdEnv['GIT_WORK_TREE'] = str(self.working_dir)
+            self.__gitCmdEnv["GIT_WORK_TREE"] = str(self.working_dir)
         else:
             self.__gitCmdCwd = self.git_dir
-            self.__gitCmdEnv.pop('GIT_WORK_TREE', None)
+            self.__gitCmdEnv.pop("GIT_WORK_TREE", None)
 
     def __str__(self):
         if self.working_dir:
@@ -58,8 +58,7 @@ class Repository(RepositoryBase):
         return str(self.git_dir)
 
     def get_git_dir(self) -> Path:
-        """Returns the path to the repository's git directory.
-        """
+        """Returns the path to the repository's git directory."""
         return self.git_dir
 
     def get_working_dir(self) -> Optional[Path]:
@@ -93,7 +92,7 @@ class Repository(RepositoryBase):
         operations care about whether or not we actually have a working
         directory, rather than if the repository is marked bare or not.
         """
-        return self.config.getBool('core.bare', self.hasWorkingDirectory())
+        return self.config.getBool("core.bare", self.hasWorkingDirectory())
 
     def get_default_diff_parent(self) -> str:
         return constants.COMMIT_HEAD
@@ -109,38 +108,59 @@ class Repository(RepositoryBase):
             return self.__gitCmdEnv
 
         env = self.__gitCmdEnv.copy()
-        for (name, value) in extra_env.items():
+        for name, value in extra_env.items():
             env[name] = value
         return env
 
-    def popenGitCmd(self, args, extra_env=None, stdin='/dev/null',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+    def popenGitCmd(
+        self,
+        args,
+        extra_env=None,
+        stdin="/dev/null",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ):
         cmd = [constants.GIT_EXE] + args
         env = self.__getCmdEnv(extra_env)
-        return proc.popen_cmd(cmd, cwd=self.__gitCmdCwd, env=env,
-                              stdin=stdin, stdout=stdout, stderr=stderr)
+        return proc.popen_cmd(
+            cmd,
+            cwd=self.__gitCmdCwd,
+            env=env,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+        )
 
-    def runGitCmd(self, args, expected_rc=0, expected_sig=None,
-                  stdout=subprocess.PIPE, extra_env=None):
+    def runGitCmd(
+        self,
+        args,
+        expected_rc=0,
+        expected_sig=None,
+        stdout=subprocess.PIPE,
+        extra_env=None,
+    ):
         cmd = [constants.GIT_EXE] + args
         env = self.__getCmdEnv(extra_env)
-        return proc.run_cmd(cmd, cwd=self.__gitCmdCwd, env=env,
-                            expected_rc=expected_rc, expected_sig=expected_sig,
-                            stdout=stdout)
+        return proc.run_cmd(
+            cmd,
+            cwd=self.__gitCmdCwd,
+            env=env,
+            expected_rc=expected_rc,
+            expected_sig=expected_sig,
+            stdout=stdout,
+        )
 
     def runSimpleGitCmd(self, args, stdout=subprocess.PIPE, extra_env=None):
         cmd = [constants.GIT_EXE] + args
         env = self.__getCmdEnv(extra_env)
-        return proc.run_simple_cmd(cmd, cwd=self.__gitCmdCwd, env=env,
-                                   stdout=stdout)
+        return proc.run_simple_cmd(cmd, cwd=self.__gitCmdCwd, env=env, stdout=stdout)
 
     def runOnelineCmd(self, args, extra_env=None):
         cmd = [constants.GIT_EXE] + args
         env = self.__getCmdEnv(extra_env)
         return proc.run_oneline_cmd(cmd, cwd=self.__gitCmdCwd, env=env)
 
-    def runCmdWithInput(self, args, input, stdout=subprocess.PIPE,
-                        extra_env=None):
+    def runCmdWithInput(self, args, input, stdout=subprocess.PIPE, extra_env=None):
         """
         Run a git command and write data to its stdin.
 
@@ -153,9 +173,13 @@ class Repository(RepositoryBase):
         before it finishes reading stdin.  This function currently shouldn't be
         used unless you know the command behavior will not cause deadlock.
         """
-        p = self.popenGitCmd(args, extra_env=extra_env,
-                             stdin=subprocess.PIPE, stdout=stdout,
-                             stderr=subprocess.PIPE)
+        p = self.popenGitCmd(
+            args,
+            extra_env=extra_env,
+            stdin=subprocess.PIPE,
+            stdout=stdout,
+            stderr=subprocess.PIPE,
+        )
 
         # Write the data to the commands' stdin.
         # TODO: We really should select() on stdin, stdout, and stderr all at
@@ -199,18 +223,19 @@ class Repository(RepositoryBase):
 
         # Note: 'git rev-list' returns the SHA1 value of the commit,
         # even if "name" refers to a tag object.
-        cmd = ['rev-list', '-1']
+        cmd = ["rev-list", "-1"]
         if extra_args is not None:
             cmd.extend(extra_args)
         cmd.append(name)
         # Add '--' so git will treat the argument as a commit name,
         # and not a path, in case it is ambiguous
-        cmd.append('--')
+        cmd.append("--")
         try:
             sha1 = self.runOnelineCmd(cmd)
         except proc.CmdFailedError as ex:
-            if (ex.stderr.find('unknown revision') >= 0 or
-                ex.stderr.find('bad revision')):
+            if ex.stderr.find("unknown revision") >= 0 or ex.stderr.find(
+                "bad revision"
+            ):
                 raise NoSuchCommitError(name)
             raise
         return sha1.decode("utf-8")
@@ -222,21 +247,21 @@ class Repository(RepositoryBase):
         Get the SHA1 ID of the specified object.  name may be a ref name, tree
         name, blob name etc.
         """
-        cmd = ['rev-parse', '--verify', name]
+        cmd = ["rev-parse", "--verify", name]
         try:
             sha1 = self.runOnelineCmd(cmd)
         except proc.CmdFailedError as ex:
-            if ex.stderr.find('Needed a single revision') >= 0:
+            if ex.stderr.find("Needed a single revision") >= 0:
                 raise NoSuchObjectError(name)
             raise
         return sha1
 
     def getObjectType(self, name: str) -> str:
-        cmd = ['cat-file', '-t', name]
+        cmd = ["cat-file", "-t", name]
         try:
             return self.runOnelineCmd(cmd).decode("utf-8")
         except proc.CmdExitCodeError as ex:
-            if ex.stderr.find('Not a valid object name') >= 0:
+            if ex.stderr.find("Not a valid object name") >= 0:
                 raise NoSuchObjectError(name)
             raise
 
@@ -248,7 +273,7 @@ class Repository(RepositoryBase):
         # We also need to handle the other index stage names, since
         # getObjectType() will fail on them too, even though we want to treat
         # them as revisions.
-        if name == ':1' or name == ':2' or name == ':3':
+        if name == ":1" or name == ":2" or name == ":3":
             return True
 
         try:
@@ -257,7 +282,7 @@ class Repository(RepositoryBase):
             return False
 
         # tag objects can be treated as commits
-        if type == 'commit' or type == 'tag':
+        if type == "commit" or type == "tag":
             return True
         return False
 
@@ -279,14 +304,14 @@ class Repository(RepositoryBase):
             is_path = False
 
         if is_rev and is_path:
-            reason = 'both revision and filename'
+            reason = "both revision and filename"
             raise AmbiguousArgumentError(name, reason)
         elif is_rev:
             return True
         elif is_path:
             return False
         else:
-            reason = 'unknown revision or path not in the working tree'
+            reason = "unknown revision or path not in the working tree"
             raise AmbiguousArgumentError(name, reason)
 
     def getBlobContents(self, commit, path, outfile=None):
@@ -307,14 +332,14 @@ class Repository(RepositoryBase):
         else:
             stdout = outfile
 
-        name = '%s:%s' % (commit, path)
-        cmd = ['cat-file', 'blob', name]
+        name = "%s:%s" % (commit, path)
+        cmd = ["cat-file", "blob", name]
         try:
             out = self.runSimpleGitCmd(cmd, stdout=stdout)
         except proc.CmdFailedError as ex:
-            if ex.stderr.find('Not a valid object name') >= 0:
+            if ex.stderr.find("Not a valid object name") >= 0:
                 raise NoSuchBlobError(name)
-            elif ex.stderr.find('bad file') >= 0:
+            elif ex.stderr.find("bad file") >= 0:
                 raise NotABlobError(name)
             raise
 
@@ -336,9 +361,9 @@ class Repository(RepositoryBase):
         recommended to precede these with the '--' option), sorting options,
         grep options, etc.
         """
-        args = ['rev-list'] + options
+        args = ["rev-list"] + options
         cmd_out = self.runSimpleGitCmd(args)
-        lines = cmd_out.split('\n')
+        lines = cmd_out.split("\n")
         while lines and not lines[-1]:
             del lines[-1]
         return lines
@@ -374,7 +399,7 @@ class Repository(RepositoryBase):
             extra_commits = []
             rev_list_start = str(child)
 
-        rev_list_args = ['^' + str(parent), rev_list_start]
+        rev_list_args = ["^" + str(parent), rev_list_start]
         commits = self.revList(rev_list_args)
         return extra_commits + commits
 
@@ -388,7 +413,7 @@ class Repository(RepositoryBase):
         are returned.  glob may also be a list of patterns, in which case all
         refs matching at least one of the patterns will be returned.
         """
-        cmd = ['ls-remote', '.']
+        cmd = ["ls-remote", "."]
         if glob is not None:
             if isinstance(glob, list):
                 cmd += glob
@@ -397,13 +422,13 @@ class Repository(RepositoryBase):
 
         refs = {}
         cmd_out = self.runSimpleGitCmd(cmd)
-        for line in cmd_out.split('\n'):
+        for line in cmd_out.split("\n"):
             if not line:
                 continue
             try:
                 (sha1, ref_name) = line.split(None, 1)
             except ValueError:
-                msg = 'unexpected output from git ls-remote: %r' % (line,)
+                msg = "unexpected output from git ls-remote: %r" % (line,)
                 args = [constants.GIT_EXE] + cmd
                 raise proc.CmdFailedError(args, msg)
             refs[ref_name] = sha1
@@ -423,8 +448,7 @@ class Repository(RepositoryBase):
         ref_dict = self.getRefs(glob)
         return sorted(ref_dict.keys())
 
-    def applyPatch(self, patch, tree='HEAD', strip=1, prefix=None,
-                   context=None):
+    def applyPatch(self, patch, tree="HEAD", strip=1, prefix=None, context=None):
         """
         Apply a patch onto a tree, creating a new tree object.
 
@@ -442,19 +466,20 @@ class Repository(RepositoryBase):
             tree = tree.sha1
 
         # Read the parent tree into a new temporary index file
-        tmp_index = tempfile.NamedTemporaryFile(dir=self.git_dir,
-                                                prefix='apply-patch.index.')
-        args = ['read-tree', tree, '--index-output=%s' % (tmp_index.name,)]
+        tmp_index = tempfile.NamedTemporaryFile(
+            dir=self.git_dir, prefix="apply-patch.index."
+        )
+        args = ["read-tree", tree, "--index-output=%s" % (tmp_index.name,)]
         self.runSimpleGitCmd(args)
 
         # Construct the git-apply command.
         # We patch the temporary index file rather than the real one.
-        extra_env = { 'GIT_INDEX_FILE' : tmp_index.name }
-        args = ['apply', '--cached', '-p%d' % (strip,)]
+        extra_env = {"GIT_INDEX_FILE": tmp_index.name}
+        args = ["apply", "--cached", "-p%d" % (strip,)]
         if prefix is not None:
-            args.append('--directory=%s' % (prefix,))
+            args.append("--directory=%s" % (prefix,))
         if context is not None:
-            args.append('-C%d' % (context,))
+            args.append("-C%d" % (context,))
 
         # Run the apply patch command
         try:
@@ -462,14 +487,15 @@ class Repository(RepositoryBase):
         except proc.CmdExitCodeError as ex:
             # If the patch failed to apply, re-raise the error as a
             # PatchFailedError.
-            if (ex.stderr.find('patch does not apply') >= 0 or
-                ex.stderr.find('does not exist in index')):
+            if ex.stderr.find("patch does not apply") >= 0 or ex.stderr.find(
+                "does not exist in index"
+            ):
                 raise PatchFailedError(ex.stderr)
             # Re-raise all other errors as-is.
             raise
 
         # Now write a tree object from the temporary index file
-        tree_sha1 = self.runOnelineCmd(['write-tree'], extra_env=extra_env)
+        tree_sha1 = self.runOnelineCmd(["write-tree"], extra_env=extra_env)
 
         # Close the temporary file (this also deletes it).
         # This would also happen automatically when tmp_index is garbage
@@ -478,10 +504,18 @@ class Repository(RepositoryBase):
 
         return tree_sha1
 
-    def commitTree(self, tree, parents, msg, author_name=None,
-                   author_email=None, author_date=None,
-                   committer_name=None, committer_email=None,
-                   committer_date=None):
+    def commitTree(
+        self,
+        tree,
+        parents,
+        msg,
+        author_name=None,
+        author_email=None,
+        author_date=None,
+        committer_name=None,
+        committer_email=None,
+        committer_date=None,
+    ):
         """
         Create a commit from a tree object, with the specified parents and
         commit message.
@@ -492,17 +526,17 @@ class Repository(RepositoryBase):
         # committer information via the environment
         extra_env = {}
         if author_name is not None:
-            extra_env['GIT_AUTHOR_NAME'] = author_name
+            extra_env["GIT_AUTHOR_NAME"] = author_name
         if author_email is not None:
-            extra_env['GIT_AUTHOR_EMAIL'] = author_email
+            extra_env["GIT_AUTHOR_EMAIL"] = author_email
         if author_date is not None:
-            extra_env['GIT_AUTHOR_DATE'] = author_date
+            extra_env["GIT_AUTHOR_DATE"] = author_date
         if committer_name is not None:
-            extra_env['GIT_COMMITTER_NAME'] = committer_name
+            extra_env["GIT_COMMITTER_NAME"] = committer_name
         if committer_email is not None:
-            extra_env['GIT_COMMITTER_EMAIL'] = committer_email
+            extra_env["GIT_COMMITTER_EMAIL"] = committer_email
         if committer_date is not None:
-            extra_env['GIT_COMMITTER_DATE'] = committer_date
+            extra_env["GIT_COMMITTER_DATE"] = committer_date
 
         # Allow the caller to pass in a single parent as a string
         # instead of a list
@@ -510,9 +544,9 @@ class Repository(RepositoryBase):
             parents = [parents]
 
         # Run git commit-tree
-        args = ['commit-tree', tree]
+        args = ["commit-tree", tree]
         for parent in parents:
-            args += ['-p', parent]
+            args += ["-p", parent]
 
         commit_out = self.runCmdWithInput(args, input=msg, extra_env=extra_env)
         commit_sha1 = commit_out.strip()
@@ -525,25 +559,25 @@ class Repository(RepositoryBase):
             return self.__listIndexTree(dirname)
 
         entries = []
-        cmd = ['ls-tree', '-z', commit, '--']
+        cmd = ["ls-tree", "-z", commit, "--"]
         if dirname is not None:
             cmd.append(dirname)
         cmd_out = self.runSimpleGitCmd(cmd)
-        for line in cmd_out.split('\0'):
+        for line in cmd_out.split("\0"):
             if not line:
                 continue
 
             try:
-                (info, name) = line.split('\t', 1)
+                (info, name) = line.split("\t", 1)
             except ValueError:
-                msg = 'unexpected output from git ls-tree: %r' % (line,)
+                msg = "unexpected output from git ls-tree: %r" % (line,)
                 args = [constants.GIT_EXE] + cmd
                 raise proc.CmdFailedError(args, msg)
             try:
-                (mode_str, type, sha1) = info.split(' ')
+                (mode_str, type, sha1) = info.split(" ")
                 mode = int(mode_str, 8)
             except ValueError:
-                msg = 'unexpected output from git ls-tree: %r' % (line,)
+                msg = "unexpected output from git ls-tree: %r" % (line,)
                 args = [constants.GIT_EXE] + cmd
                 raise proc.CmdFailedError(args, msg)
             # Return only the basename,
@@ -563,43 +597,45 @@ class Repository(RepositoryBase):
             raise NoWorkingDirError(self)
 
         # Run "git ls-files -s" to get the contents of the index
-        cmd = ['ls-files', '-s', '-z', '--']
+        cmd = ["ls-files", "-s", "-z", "--"]
         if dirname:
             dirname = os.path.normpath(dirname)
             prefix = dirname + os.sep
             cmd.append(dirname)
         else:
-            prefix = ''
+            prefix = ""
         cmd_out = self.runSimpleGitCmd(cmd)
 
         tree_entries = {}
         entries = []
-        for line in cmd_out.split('\0'):
+        for line in cmd_out.split("\0"):
             if not line:
                 continue
 
             try:
-                (info, name) = line.split('\t', 1)
+                (info, name) = line.split("\t", 1)
             except ValueError:
-                msg = 'unexpected output from git ls-files: %r' % (line,)
+                msg = "unexpected output from git ls-files: %r" % (line,)
                 args = [constants.GIT_EXE] + cmd
                 raise proc.CmdFailedError(args, msg)
             try:
-                (mode_str, sha1, stage_str) = info.split(' ')
+                (mode_str, sha1, stage_str) = info.split(" ")
                 mode = int(mode_str, 8)
                 stage = int(stage_str, 0)
             except ValueError:
-                msg = 'unexpected output from git ls-files: %r' % (line,)
+                msg = "unexpected output from git ls-files: %r" % (line,)
                 args = [constants.GIT_EXE] + cmd
                 raise proc.CmdFailedError(args, msg)
 
             # Strip off dirname from the start of name
             if not name.startswith(prefix):
-                msg = 'unexpected output from git ls-files: %r does ' \
-                        'not start with %r' % (name, prefix)
+                msg = (
+                    "unexpected output from git ls-files: %r does "
+                    "not start with %r" % (name, prefix)
+                )
                 args = [constants.GIT_EXE] + cmd
                 raise proc.CmdFailedError(args, msg)
-            name = name[len(prefix):]
+            name = name[len(prefix) :]
 
             entries.append(git_obj.IndexEntry(name, mode, sha1, stage))
 
@@ -615,7 +651,7 @@ class Repository(RepositoryBase):
 
         if not dirname:
             paths = None
-            strip_prefix = ''
+            strip_prefix = ""
         else:
             paths = [dirname]
             strip_prefix = os.path.normpath(dirname) + os.sep
@@ -634,37 +670,43 @@ class Repository(RepositoryBase):
             ie_by_path[ie.path] = ie
 
         for de in diff:
-            if de.status == git_diff.Status.ADDED or \
-                    de.status == git_diff.Status.RENAMED or \
-                    de.status == git_diff.Status.COPIED:
+            if (
+                de.status == git_diff.Status.ADDED
+                or de.status == git_diff.Status.RENAMED
+                or de.status == git_diff.Status.COPIED
+            ):
                 # The diff shouldn't have any renamed, copied, or new files.
                 # New files in the working directory are ignored until they
                 # are added to the index.  Files that have been renamed in the
                 # working directory and not updated in the index just show up
                 # as the old path having been deleted.
-                msg = 'unexpected status %s for %r in working directory ' \
-                        'diff' % (de.status, de.getPath(),)
+                msg = "unexpected status %s for %r in working directory " "diff" % (
+                    de.status,
+                    de.getPath(),
+                )
                 raise GitError(msg)
 
             path = de.old.path
             if not path.startswith(strip_prefix):
-                msg = 'unexpected path %r in diff output: does not start ' \
-                        'with %r' % (path, strip_prefix)
+                msg = "unexpected path %r in diff output: does not start " "with %r" % (
+                    path,
+                    strip_prefix,
+                )
                 raise GitError(msg)
-            path = path[len(strip_prefix):]
+            path = path[len(strip_prefix) :]
 
             # Update the entry as appropriate
             if de.status == git_diff.Status.DELETED:
                 try:
                     del ie_by_path[path]
                 except KeyError:
-                    msg = 'path %r in diff output, but not in index' % (path,)
+                    msg = "path %r in diff output, but not in index" % (path,)
                     raise GitError(msg)
             else:
                 try:
                     ie = ie_by_path[path]
                 except KeyError:
-                    msg = 'path %r in diff output, but not in index' % (path,)
+                    msg = "path %r in diff output, but not in index" % (path,)
                     raise GitError(msg)
                 # Since there are no renames or copies,
                 # the new name should be the same as the old name
@@ -674,7 +716,7 @@ class Repository(RepositoryBase):
                 # If we really wanted, we could use 'git hash-object'
                 # to compute what the has would be, and optionally create
                 # an actual blob object.
-                ie.sha1 = '0000000000000000000000000000000000000000'
+                ie.sha1 = "0000000000000000000000000000000000000000"
 
         # Now convert all of the IndexEntry objects into TreeEntries
         return self.__convertIndexToTree(ie_by_path.values())
@@ -690,13 +732,13 @@ class Repository(RepositoryBase):
                 # have one.
                 name = ie.path[:sep_idx]
                 mode = 0o40000
-                type = 'tree'
+                type = "tree"
                 # There are no tree objects for the index.
                 # If the caller really wants tree objects, we could
                 # use 'git write-tree' to create the tree, or
                 # 'git hash-object' to determine what the SHA1 would
                 # be for this tree, without actually creating it.
-                sha1 = '0000000000000000000000000000000000000000'
+                sha1 = "0000000000000000000000000000000000000000"
                 entry = git_obj.TreeEntry(name, mode, type, sha1)
                 tree_entries[name] = entry
                 continue
@@ -712,13 +754,13 @@ class Repository(RepositoryBase):
             if not (ie.stage == 0 or ie.stage == 2):
                 continue
 
-            entry = git_obj.TreeEntry(ie.path, ie.mode, 'blob', ie.sha1)
+            entry = git_obj.TreeEntry(ie.path, ie.mode, "blob", ie.sha1)
             blob_entries.append(entry)
 
         # Combine the results, and sort them for consistent ordering
         entries = blob_entries
         entries.extend(tree_entries.values())
-        entries.sort(key = operator.attrgetter('name'))
+        entries.sort(key=operator.attrgetter("name"))
         return entries
 
     def expand_commit_name(self, name, aliases):

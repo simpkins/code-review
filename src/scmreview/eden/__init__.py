@@ -30,11 +30,11 @@ from ..git.diff import BlobInfo, DiffFileList, DiffEntry, Status
 class Repository(RepositoryBase):
     def __init__(self, path: Path) -> None:
         self.path = path
-        self.eden_cmd = ['hg']
+        self.eden_cmd = ["hg"]
         self.env = os.environ.copy()
-        self.env['HGPLAIN'] = '1'
+        self.env["HGPLAIN"] = "1"
         # Allow resolving user-defined revset aliases
-        self.env['HGPLAINEXCEPT'] = 'revsetalias'
+        self.env["HGPLAINEXCEPT"] = "revsetalias"
 
         self._node_cache: Dict[str, str] = {}
 
@@ -54,21 +54,21 @@ class Repository(RepositoryBase):
         return COMMIT_WD
 
     def getDiff(self, parent, child, paths=None):
-        cmd = ['status', '-0Cmardu']
+        cmd = ["status", "-0Cmardu"]
         if child == COMMIT_WD:
             if parent == COMMIT_WD:
                 return DiffFileList("", "")
                 return entries
-            cmd += ['--rev', parent]
+            cmd += ["--rev", parent]
         elif parent == COMMIT_WD:
-            cmd += ['--rev', self._get_node(parent)]
+            cmd += ["--rev", self._get_node(parent)]
             cnode = self._get_node(child)
             # TODO: reverse statuses
-            raise Exception('todo: reverse each file status after diff')
+            raise Exception("todo: reverse each file status after diff")
         else:
             parent = self._get_node(parent)
             child = self._get_node(child)
-            cmd += ['--rev', parent, '--rev', child]
+            cmd += ["--rev", parent, "--rev", child]
 
         out = self.run_cmd(cmd)
         entries = DiffFileList(parent, child)
@@ -89,15 +89,17 @@ class Repository(RepositoryBase):
         if ret is not None:
             return ret
 
-        real_aliases = dict((n, v)
-                            for n, v in aliases.items()
-                            if not isinstance(v, WorkingDirectoryCommit))
+        real_aliases = dict(
+            (n, v)
+            for n, v in aliases.items()
+            if not isinstance(v, WorkingDirectoryCommit)
+        )
 
         name = self._prevent_revnum(name)
-        cmd = ['log', '-T{node}\n', '-r', name]
+        cmd = ["log", "-T{node}\n", "-r", name]
         for n, v in aliases.items():
-            cmd.append('--config')
-            cmd.append('revsetalias.%s=%s' % (n, v))
+            cmd.append("--config")
+            cmd.append("revsetalias.%s=%s" % (n, v))
 
         out = self.run_oneline(cmd)
         return out.decode("utf-8")
@@ -122,7 +124,7 @@ class Repository(RepositoryBase):
         return self._get_node(name)
 
     def getBlobContents(self, commit, path, outfile=None):
-        cmd = ['cat', '-r', commit, 'path:' + path]
+        cmd = ["cat", "-r", commit, "path:" + path]
 
         if outfile is None:
             return self.run_cmd(cmd)
@@ -136,7 +138,7 @@ class Repository(RepositoryBase):
 
         name = self._prevent_revnum(name)
 
-        out = self.run_oneline(['log', '-T{node}', '-r', name])
+        out = self.run_oneline(["log", "-T{node}", "-r", name])
         result = out.decode("utf-8")
         self._node_cache[name] = result
         return result
@@ -146,8 +148,7 @@ class Repository(RepositoryBase):
         start = time.time()
         logging.debug(f"run hg cmd: {full_cmd}")
         p = subprocess.Popen(
-            full_cmd, env=self.env, cwd=self.path,
-            stdout=stdout, stderr=subprocess.PIPE
+            full_cmd, env=self.env, cwd=self.path, stdout=stdout, stderr=subprocess.PIPE
         )
         out, err = p.communicate()
         duration = time.time() - start
@@ -155,7 +156,7 @@ class Repository(RepositoryBase):
             f"  --> hg {cmd[0]} returned {p.returncode} in {duration} seconds"
         )
         if p.returncode != 0:
-            raise Exception('error running %r: stderr=%r' % (cmd, err))
+            raise Exception("error running %r: stderr=%r" % (cmd, err))
         return out
 
     def run_oneline(self, cmd):
@@ -163,8 +164,7 @@ class Repository(RepositoryBase):
         lines = out.splitlines()
         if len(lines) != 1:
             raise Exception(
-                'expected command %r to produce a single line, got %r' %
-                (cmd, out)
+                "expected command %r to produce a single line, got %r" % (cmd, out)
             )
         return lines[0]
 
@@ -191,14 +191,14 @@ class Repository(RepositoryBase):
         return revset
 
 
-DIFF_CODE_SPACE = ord(b' ')
-DIFF_CODE_MODIFIED = ord(b'M')
-DIFF_CODE_ADDED = ord(b'A')
-DIFF_CODE_REMOVED = ord(b'R')
-DIFF_CODE_DELETED = ord(b'!')
-DIFF_CODE_UNKNOWN = ord(b'?')
-DIFF_CODE_IGNORED = ord(b'I')
-DIFF_CODE_CLEAN = ord(b'C')
+DIFF_CODE_SPACE = ord(b" ")
+DIFF_CODE_MODIFIED = ord(b"M")
+DIFF_CODE_ADDED = ord(b"A")
+DIFF_CODE_REMOVED = ord(b"R")
+DIFF_CODE_DELETED = ord(b"!")
+DIFF_CODE_UNKNOWN = ord(b"?")
+DIFF_CODE_IGNORED = ord(b"I")
+DIFF_CODE_CLEAN = ord(b"C")
 
 
 class DiffParser(object):
@@ -218,23 +218,18 @@ class DiffParser(object):
 
     def parse_next(self) -> int:
         idx = self.idx
-        end = self.data.find(b'\0', idx)
+        end = self.data.find(b"\0", idx)
         if end == -1:
             raise Exception(
-                "unfinished entry at end of diff output: "
-                f"{self.data[idx:]!r}"
+                "unfinished entry at end of diff output: " f"{self.data[idx:]!r}"
             )
         if end - idx < 3:
-            raise Exception(
-                f"unparsable diff entry: {self.data[idx:end]!r}"
-            )
+            raise Exception(f"unparsable diff entry: {self.data[idx:end]!r}")
 
         code = self.data[idx]
         if self.data[idx + 1] != DIFF_CODE_SPACE:
-            raise Exception(
-                f"unparsable diff entry: {self.data[idx:end]!r}"
-            )
-        path = self.data[idx + 2:end]
+            raise Exception(f"unparsable diff entry: {self.data[idx:end]!r}")
+        path = self.data[idx + 2 : end]
         self.parse_entry(code, path)
         return end
 
@@ -249,8 +244,8 @@ class DiffParser(object):
                 raise Exception(f"diff entry is missing status code: {path!r}")
 
             self._old_paths.add(path)
-            self.prev_entry.status = Status(b'R')
-            self.prev_entry.old = BlobInfo(sha1=b'', path=path, mode=b'0644')
+            self.prev_entry.status = Status(b"R")
+            self.prev_entry.old = BlobInfo(sha1=b"", path=path, mode=b"0644")
             self.finish_prev_entry()
             return
 
@@ -259,10 +254,10 @@ class DiffParser(object):
         diff_path: Optional[bytes] = path
         old_path: Optional[bytes] = None
         if code == DIFF_CODE_MODIFIED:
-            status = Status(b'M')
+            status = Status(b"M")
             old_path = path
         elif code == DIFF_CODE_ADDED:
-            status = Status(b'A')
+            status = Status(b"A")
         elif code in (DIFF_CODE_REMOVED, DIFF_CODE_DELETED):
             # In practice removed entries are always listed after all added &
             # modified entries, so we should have already put all known old
@@ -271,7 +266,7 @@ class DiffParser(object):
                 # This path was moved away from, and we already added
                 # a DiffEntry for it using the new path.
                 return
-            status = Status(b'D')
+            status = Status(b"D")
             old_path = path
             diff_path = None
         elif code in (DIFF_CODE_UNKNOWN, DIFF_CODE_IGNORED, DIFF_CODE_CLEAN):
@@ -282,21 +277,20 @@ class DiffParser(object):
         # TODO: these are dummy values.
         # We should perhaps change to our our own custom DiffEntry type for
         # EdenSCM that does not contain these fields.
-        old_mode = b'0000'
-        old_sha1 = b''
-        new_mode = b'0000'
-        new_sha1 = b''
+        old_mode = b"0000"
+        old_sha1 = b""
+        new_mode = b"0000"
+        new_sha1 = b""
         self.prev_entry = DiffEntry(
             old_mode, new_mode, old_sha1, new_sha1, status, old_path, diff_path
         )
 
 
-
-class WorkingDirectoryCommit():
+class WorkingDirectoryCommit:
     def __str__(self):
         return COMMIT_WD_STR
 
 
 COMMIT_WD = WorkingDirectoryCommit()
-COMMIT_WD_STR = ':wd'
-COMMIT_HEAD = '.'
+COMMIT_WD_STR = ":wd"
+COMMIT_HEAD = "."

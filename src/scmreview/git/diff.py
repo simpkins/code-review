@@ -25,42 +25,42 @@ from . import constants
 
 
 class Status(object):
-    ADDED               = 'A'
-    COPIED              = 'C'
-    DELETED             = 'D'
-    MODIFIED            = 'M'
-    RENAMED             = 'R'
-    TYPE_CHANGED        = 'T'
-    UNMERGED            = 'U'
+    ADDED = "A"
+    COPIED = "C"
+    DELETED = "D"
+    MODIFIED = "M"
+    RENAMED = "R"
+    TYPE_CHANGED = "T"
+    UNMERGED = "U"
     # internally, git also defines 'X' for unknown
 
     def __init__(self, str_value):
         self.similarityIndex = None
-        if str_value == b'A':
+        if str_value == b"A":
             self.status = self.ADDED
-        elif str_value.startswith(b'C'):
+        elif str_value.startswith(b"C"):
             self.status = self.COPIED
             if len(str_value) > 1:
                 self.similarityIndex = self.__parseSimIndex(str_value[1:])
-        elif str_value == b'D':
+        elif str_value == b"D":
             self.status = self.DELETED
-        elif str_value == b'M':
+        elif str_value == b"M":
             self.status = self.MODIFIED
-        elif str_value.startswith(b'R'):
+        elif str_value.startswith(b"R"):
             self.status = self.RENAMED
             if len(str_value) > 1:
                 self.similarityIndex = self.__parseSimIndex(str_value[1:])
-        elif str_value == b'T':
+        elif str_value == b"T":
             self.status = self.TYPE_CHANGED
-        elif str_value == b'U':
+        elif str_value == b"U":
             self.status = self.UNMERGED
         else:
-            raise ValueError('unknown status type %r' % (str_value))
+            raise ValueError("unknown status type %r" % (str_value))
 
     def __parseSimIndex(self, sim_index_str):
         similarity_index = int(sim_index_str)
         if similarity_index < 0 or similarity_index > 100:
-            raise ValueError('invalid similarity index %r' % (sim_index_str))
+            raise ValueError("invalid similarity index %r" % (sim_index_str))
         return similarity_index
 
     def getChar(self):
@@ -74,29 +74,29 @@ class Status(object):
         Get the text description of this status.
         """
         if self.status == self.ADDED:
-            return 'added'
+            return "added"
         elif self.status == self.COPIED:
-            return 'copied'
+            return "copied"
         elif self.status == self.DELETED:
-            return 'deleted'
+            return "deleted"
         elif self.status == self.MODIFIED:
-            return 'modified'
+            return "modified"
         elif self.status == self.RENAMED:
-            return 'renamed'
+            return "renamed"
         elif self.status == self.TYPE_CHANGED:
-            return 'type changed'
+            return "type changed"
         elif self.status == self.UNMERGED:
-            return 'unmerged'
+            return "unmerged"
 
         raise ValueError(self.status)
 
     def __str__(self):
         if self.similarityIndex is not None:
-            return '%s%03d' % (self.status, self.similarityIndex)
+            return "%s%03d" % (self.status, self.similarityIndex)
         return self.status
 
     def __repr__(self):
-        return 'Status(%s)' % (self,)
+        return "Status(%s)" % (self,)
 
     def __eq__(self, other):
         if isinstance(other, Status):
@@ -109,28 +109,32 @@ class Status(object):
 
 class BlobInfo(object):
     """Info about a git blob"""
+
     def __init__(self, sha1, path, mode):
         self.sha1 = sha1.decode("utf-8")
         self.path = (
-            None if path is None else
-            path.decode("utf-8", errors="surrogateescape")
+            None if path is None else path.decode("utf-8", errors="surrogateescape")
         )
         self.mode = mode
 
 
 class DiffEntry(object):
-    def __init__(self, old_mode, new_mode, old_sha1, new_sha1, status,
-                 old_path, new_path):
+    def __init__(
+        self, old_mode, new_mode, old_sha1, new_sha1, status, old_path, new_path
+    ):
         self.old = BlobInfo(old_sha1, old_path, old_mode)
         self.new = BlobInfo(new_sha1, new_path, new_mode)
         self.status = status
 
     def __str__(self):
         if self.status == Status.RENAMED or self.status == Status.COPIED:
-            return 'DiffEntry(%s: %s --> %s)' % \
-                    (self.status, self.old.path, self.new.path)
+            return "DiffEntry(%s: %s --> %s)" % (
+                self.status,
+                self.old.path,
+                self.new.path,
+            )
         else:
-            return 'DiffEntry(%s: %s)' % (self.status, self.getPath())
+            return "DiffEntry(%s: %s)" % (self.status, self.getPath())
 
     def reverse(self):
         tmp_info = self.old
@@ -141,8 +145,9 @@ class DiffEntry(object):
             self.status = Status(Status.DELETED)
         elif self.status == Status.COPIED:
             self.status = Status(Status.DELETED)
-            self.new = BlobInfo('0000000000000000000000000000000000000000',
-                                None, '000000')
+            self.new = BlobInfo(
+                "0000000000000000000000000000000000000000", None, "000000"
+            )
         elif self.status == Status.DELETED:
             # Note: we have no way to tell if the file deleted is similar to
             # an existing file, so we can't tell if the reversed operation
@@ -187,12 +192,12 @@ class DiffFileList(object):
                 pass
             else:
                 # We don't expect duplicate entries in any other case.
-                msg = 'diff list already contains an entry for %s' % (path,)
+                msg = "diff list already contains an entry for %s" % (path,)
                 raise GitError(msg)
         self.entries[path] = entry
 
     def __repr__(self):
-        return 'DiffFileList(' + repr(self.entries) + ')'
+        return "DiffFileList(" + repr(self.entries) + ")"
 
     def __getitem__(self, key):
         return self.entries[key]
@@ -201,10 +206,10 @@ class DiffFileList(object):
         return self.entries.keys()
 
     def __delitem__(self, key):
-        raise TypeError('DiffFileList is non-modifiable')
+        raise TypeError("DiffFileList is non-modifiable")
 
     def __setitem__(self, key, value):
-        raise TypeError('DiffFileList is non-modifiable')
+        raise TypeError("DiffFileList is non-modifiable")
 
     def __iter__(self):
         # By default, iterate over the values instead of the keys
@@ -241,12 +246,12 @@ def get_diff_list(repo, parent, child, paths=None):
             # No diffs
             commit_args = None
         else:
-            commit_args = ['--cached', str(child)]
+            commit_args = ["--cached", str(child)]
             reverse = True
     elif child == constants.COMMIT_WD:
         commit_args = [str(parent)]
     elif child == constants.COMMIT_INDEX:
-        commit_args = ['--cached', str(parent)]
+        commit_args = ["--cached", str(parent)]
     else:
         commit_args = [str(parent), str(child)]
 
@@ -261,15 +266,19 @@ def get_diff_list(repo, parent, child, paths=None):
 
     if commit_args == None or path_args == None:
         # No diffs
-        out = b''
+        out = b""
     else:
         # XXX: git seems to have some weird interactions between the
         # -M and -C arguments.  "-M -C" works fairly well, while "-C" by
         # itself or "-C -M" will frequently hit file rename limits and stop
         # doing rename detection.  I haven't verified that "-M -C" actually
         # does proper copy detection.
-        cmd = ['diff', '--raw', '--abbrev=40', '-z', '-M', '-C'] + \
-                commit_args + ['--'] + path_args
+        cmd = (
+            ["diff", "--raw", "--abbrev=40", "-z", "-M", "-C"]
+            + commit_args
+            + ["--"]
+            + path_args
+        )
         try:
             out = repo.runSimpleGitCmd(cmd)
         except proc.CmdFailedError as ex:
@@ -279,7 +288,7 @@ def get_diff_list(repo, parent, child, paths=None):
                 raise NoSuchCommitError(bad_rev)
             raise
 
-    fields = out.split(b'\0')
+    fields = out.split(b"\0")
     # When the diff is non-empty, it will have a terminating '\0'
     # Remove the empty field after the last '\0'
     if fields and not fields[-1]:
@@ -292,52 +301,61 @@ def get_diff_list(repo, parent, child, paths=None):
     while n < num_fields:
         field = fields[n]
         # The field should start with ':'
-        if not field.startswith(b':'):
-            msg = 'unexpected output from git diff: ' \
-                    'missing : at start of field %d (%r)' % \
-                    (n, field)
+        if not field.startswith(b":"):
+            msg = (
+                "unexpected output from git diff: "
+                "missing : at start of field %d (%r)" % (n, field)
+            )
             raise GitError(msg)
 
         # Split the field into its components
-        parts = field.split(b' ')
+        parts = field.split(b" ")
         try:
-            (old_mode_str, new_mode_str,
-             old_sha1, new_sha1, status_str) = parts
+            (old_mode_str, new_mode_str, old_sha1, new_sha1, status_str) = parts
             # Strip the leading ':' from old_mode_str
             old_mode_str = old_mode_str[1:]
         except ValueError:
-            msg = 'unexpected output from git diff: ' \
-                    'unexpected number of components in field %d (%r)' % \
-                    (n, field)
+            msg = (
+                "unexpected output from git diff: "
+                "unexpected number of components in field %d (%r)" % (n, field)
+            )
             raise GitError(msg)
 
         # Parse the mode fields
         try:
             old_mode = int(old_mode_str, 8)
         except ValueError:
-            msg = 'unexpected output from git diff: ' \
-                    'invalid old mode %r in field %d' % (old_mode_str, n)
+            msg = (
+                "unexpected output from git diff: "
+                "invalid old mode %r in field %d" % (old_mode_str, n)
+            )
             raise GitError(msg)
         try:
             new_mode = int(new_mode_str, 8)
         except ValueError:
-            msg = 'unexpected output from git diff: ' \
-                    'invalid new mode %r in field %d' % (new_mode_str, n)
+            msg = (
+                "unexpected output from git diff: "
+                "invalid new mode %r in field %d" % (new_mode_str, n)
+            )
             raise GitError(msg)
 
         # Parse the status
         try:
             status = Status(status_str)
         except ValueError:
-            msg = 'unexpected output from git diff: ' \
-                    'invalid status %r in field %d' % (status_str, n)
+            msg = (
+                "unexpected output from git diff: "
+                "invalid status %r in field %d" % (status_str, n)
+            )
             raise GitError(msg)
 
         # Advance n to read the first file name
         n += 1
         if n >= num_fields:
-            msg = 'unexpected output from git diff: ' \
-                    'missing file name for field %d' % (n - 1,)
+            msg = (
+                "unexpected output from git diff: "
+                "missing file name for field %d" % (n - 1,)
+            )
             raise GitError(msg)
 
         # Read the file name(s)
@@ -346,8 +364,10 @@ def get_diff_list(repo, parent, child, paths=None):
             # Advance n to read the second file name
             n += 1
             if n >= num_fields:
-                msg = 'unexpected output from git diff: ' \
-                        'missing second file name for field %d' % (n,)
+                msg = (
+                    "unexpected output from git diff: "
+                    "missing second file name for field %d" % (n,)
+                )
                 raise GitError(msg)
             new_name = fields[n]
         else:
@@ -363,8 +383,9 @@ def get_diff_list(repo, parent, child, paths=None):
                 new_name = name
 
         # Create the DiffEntry
-        entry = DiffEntry(old_mode, new_mode, old_sha1, new_sha1,
-                          status, old_name, new_name)
+        entry = DiffEntry(
+            old_mode, new_mode, old_sha1, new_sha1, status, old_name, new_name
+        )
         if reverse:
             entry.reverse()
         entries.add(entry)

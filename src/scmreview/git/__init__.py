@@ -44,7 +44,7 @@ def is_git_dir(path: Path) -> bool:
     # This is normally a directory called "objects" inside the git directory,
     # but it can be overridden with the GIT_OBJECT_DIRECTORY environment
     # variable.
-    object_dir_env = os.environ.get('GIT_OBJECT_DIRECTORY')
+    object_dir_env = os.environ.get("GIT_OBJECT_DIRECTORY")
     if object_dir_env is not None:
         object_dir = Path(object_dir_env)
     else:
@@ -90,7 +90,7 @@ def _get_git_dir(
     # If git_dir wasn't explicitly specified, but GIT_DIR is set in the
     # environment, use that.
     if git_dir == None:
-        git_dir_env = os.environ.get('GIT_DIR')
+        git_dir_env = os.environ.get("GIT_DIR")
         if git_dir_env is not None:
             git_dir = Path(git_dir_env)
 
@@ -104,9 +104,9 @@ def _get_git_dir(
     # Otherwise, attempt to find the git directory by searching up from
     # the current working directory.
     ceiling_dirs = [Path(os.path.sep)]
-    ceiling_dirs_env = os.environ['GIT_CEILING_DIRECTORIES']
+    ceiling_dirs_env = os.environ["GIT_CEILING_DIRECTORIES"]
     if ceiling_dirs_env:
-        ceiling_dirs.extend(Path(p) for p in ceiling_dirs_env.split(':'))
+        ceiling_dirs.extend(Path(p) for p in ceiling_dirs_env.split(":"))
 
     path = cwd.resolve(strict=False)
     while True:
@@ -193,16 +193,16 @@ def get_repo(
     # If working_dir wasn't explicitly specified, but GIT_WORK_TREE is set in
     # the environment, use that.
     if working_dir == None:
-        working_dir_env = os.environ.get('GIT_WORK_TREE')
+        working_dir_env = os.environ.get("GIT_WORK_TREE")
         if working_dir_env is not None:
             working_dir = Path(working_dir_env)
 
     if working_dir == None:
-        is_bare = git_config.getBool('core.bare', False)
+        is_bare = git_config.getBool("core.bare", False)
         if is_bare:
             working_dir = None
         else:
-            working_dir_cfg = git_config.get('core.worktree', None)
+            working_dir_cfg = git_config.get("core.worktree", None)
             if working_dir_cfg is None:
                 working_dir = default_working_dir
             else:

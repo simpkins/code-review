@@ -16,6 +16,7 @@
 #
 import re
 
+
 class TokenizationError(Exception):
     pass
 
@@ -43,12 +44,12 @@ class EscapeState(State):
     def handle_end(self, tokenizer):
         # XXX: We could treat this as an indication to continue on to the next
         # line.
-        msg = 'unterminated escape sequence'
+        msg = "unterminated escape sequence"
         raise PartialTokenError(tokenizer.get_partial_token(), msg)
 
 
 class QuoteState(State):
-    def __init__(self, quote_char, escape_chars = '\\'):
+    def __init__(self, quote_char, escape_chars="\\"):
         State.__init__(self)
         self.quote = quote_char
         self.escape_chars = escape_chars
@@ -62,22 +63,22 @@ class QuoteState(State):
             tokenizer.add_to_token(char)
 
     def handle_end(self, tokenizer):
-        msg = 'unterminated quote'
+        msg = "unterminated quote"
         raise PartialTokenError(tokenizer.get_partial_token(), msg)
 
 
 class NormalState(State):
     def __init__(self):
         State.__init__(self)
-        self.quote_chars = '"\''
-        self.escape_chars = '\\'
-        self.delim_chars = ' \t\n'
+        self.quote_chars = "\"'"
+        self.escape_chars = "\\"
+        self.delim_chars = " \t\n"
 
     def handle_char(self, tokenizer, char):
         if char in self.escape_chars:
             tokenizer.push_state(EscapeState())
         elif char in self.quote_chars:
-            tokenizer.add_to_token('')
+            tokenizer.add_to_token("")
             tokenizer.push_state(QuoteState(char, self.escape_chars))
         elif char in self.delim_chars:
             tokenizer.end_token()
@@ -96,8 +97,9 @@ class Tokenizer(object):
     slow.  However, it is intended to be very customizable.  It provides many
     hooks to allow subclasses to override and extend its behavior.
     """
-    STATE_NORMAL        = 0
-    STATE_IN_QUOTE      = 1
+
+    STATE_NORMAL = 0
+    STATE_IN_QUOTE = 1
 
     def __init__(self, state, value):
         self.value = value
@@ -173,7 +175,7 @@ class Tokenizer(object):
     def pop_state(self):
         self.state_stack.pop()
         if not self.state_stack:
-            raise Exception('cannot pop last state')
+            raise Exception("cannot pop last state")
 
     def add_to_token(self, char):
         if self.current_token == None:
@@ -203,7 +205,7 @@ def escape_arg(arg):
     """
     if arg.find('"') >= 0:
         if arg.find("'") >= 0:
-            s = re.sub(r'\\', r'\\\\', arg)
+            s = re.sub(r"\\", r"\\\\", arg)
             s = re.sub("'", "\\'", s)
             return "'%s'" % (s,)
         else:
@@ -215,4 +217,4 @@ def escape_arg(arg):
 
 
 def escape_args(args):
-    return ' '.join([escape_arg(a) for a in args])
+    return " ".join([escape_arg(a) for a in args])

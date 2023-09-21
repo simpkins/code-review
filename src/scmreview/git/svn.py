@@ -17,9 +17,9 @@
 import re
 
 from .exceptions import *
-import .commit as git_commit
+from . import commit as git_commit
 
-__all__ = ['GitSvnError', 'get_svn_info', 'get_svn_url']
+__all__ = ["GitSvnError", "get_svn_info", "get_svn_url"]
 
 
 class GitSvnError(GitError):
@@ -28,10 +28,13 @@ class GitSvnError(GitError):
 
 def _parse_svn_info(commit_msg):
     # This pattern is the same one used by the perl git-svn code
-    m = re.search(r'^\s*git-svn-id:\s+(.*)@(\d+)\s([a-f\d\-]+)$',
-                  commit_msg, re.MULTILINE)
+    m = re.search(
+        r"^\s*git-svn-id:\s+(.*)@(\d+)\s([a-f\d\-]+)$",
+        commit_msg,
+        re.MULTILINE,
+    )
     if not m:
-        raise GitSvnError('failed to parse git-svn-id from commit message')
+        raise GitSvnError("failed to parse git-svn-id from commit message")
 
     url = m.group(1)
     revision = m.group(2)
@@ -55,7 +58,7 @@ def get_svn_url(repo, commit=None):
     commit, or HEAD if not specified.
     """
     if commit is None:
-        commit = 'HEAD'
+        commit = "HEAD"
     elif isinstance(commit, git_commit.Commit):
         # Since we already have this commit's message,
         # try to parse it first.  If it contains a git-svn-id,
@@ -71,8 +74,15 @@ def get_svn_url(repo, commit=None):
 
     # Look through the commit history for a commit with a git-svn-id
     # in the commit message
-    args = ['log', '-1', '--no-color', '--first-parent', '--pretty=medium',
-            '--grep=^git-svn-id: ', commit]
+    args = [
+        "log",
+        "-1",
+        "--no-color",
+        "--first-parent",
+        "--pretty=medium",
+        "--grep=^git-svn-id: ",
+        commit,
+    ]
     out = repo.runSimpleGitCmd(args)
 
     (url, rev, uuid) = _parse_svn_info(out)

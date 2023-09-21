@@ -63,8 +63,8 @@ class TmpFile(FileAPI):
             self.tmp_path = working_dir / self.path
         else:
             username = os.environ.get("USER") or os.environ.get("USERNAME")
-            prefix = 'scm-review-%s-' % (username,)
-            suffix = '-' + os.path.basename(self.path)
+            prefix = "scm-review-%s-" % (username,)
+            suffix = "-" + os.path.basename(self.path)
             # Note that we have to use delete=False on Windows, and manually
             # delete the file ourselves.  Without delete=False other programs
             # (e.g., the editor or diff viewer) will get permission denied
@@ -74,8 +74,7 @@ class TmpFile(FileAPI):
             )
             self.tmp_path = Path(self.tmp_file.name)
             # Invoke git to write the blob contents into the temporary file
-            self.repo.getBlobContents(self.commit, self.path,
-                                      outfile=self.tmp_file)
+            self.repo.getBlobContents(self.commit, self.path, outfile=self.tmp_file)
 
     def __enter__(self) -> "TmpFile":
         return self
@@ -127,8 +126,8 @@ else:
 
         def open(self) -> None:
             username = os.environ.get("USER") or os.environ.get("USERNAME")
-            prefix = f'scm-review-{username}-'
-            suffix = '-empty'
+            prefix = f"scm-review-{username}-"
+            suffix = "-empty"
             self.tmp_file = tempfile.NamedTemporaryFile(
                 prefix=prefix, suffix=suffix, delete=False
             )
