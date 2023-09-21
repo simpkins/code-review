@@ -131,7 +131,7 @@ def _get_git_dir(
         path = parent_dir
 
 
-def check_git_path(path: Path) -> Optional[Tuple[Path, Path]]:
+def check_git_path(path: Path) -> Optional[repo.Repository]:
     """
     Check if the specified path refers contains a .git file or directory
     that refers to a git repository.
@@ -145,28 +145,34 @@ def check_git_path(path: Path) -> Optional[Tuple[Path, Path]]:
         return None
 
     if stat.S_ISREG(stat_info.st_mode):
-        # Submodules contain .git files that point to their git directory
-        # location.  The file contains a single line of the format
+        # Worktrees and submodules contain .git files that point to their git
+        # directory location.  The file contains a single line of the format
         # "gitdir: <path>"
         with git_path.open() as f:
             first_line = f.readline()
-        m = re.match(r'^gitdir: (.*)\n?', first_line)
+        m = re.match(r"^gitdir: (.*)\n?", first_line)
         if m:
-            dest = (path / m.group(1)).resolve(strict=False)
-            if not is_git_dir(dest):
-                raise GitError('%s points to bad git diretory %s' %
-                               (git_path, dest))
-            return (dest, path)
+            # As long as the file matches the expected pattern, assume the git
+            # directory it points to is valid.  In the case of worktrees, this
+            # directory may not actually be the "real" git directory, and may
+            # contain additional "gitdir" and "commondir" files pointing to the
+            # real underlying data storage.
+            #
+            # Return the path to the original .git file here as the git path,
+            # and let git itself handle further resolution.
+            git_config = config.load(git_path)
+            return repo.Repository(git_path, path, git_config)
     elif stat.S_ISDIR(stat_info.st_mode):
         if is_git_dir(git_path):
-            return (git_path, path)
+            git_config = config.load(git_path)
+            return repo.Repository(git_path, path, git_config)
 
     return None
 
 
 def get_repo(
     git_dir: Optional[Path] = None, working_dir: Optional[Path] = None
-):
+) -> repo.Repository:
     """
     get_repo(git_dir=None) --> Repository object
 

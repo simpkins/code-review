@@ -47,9 +47,9 @@ def find_repo(path: Path) -> Optional[RepositoryBase]:
 
 def _try_get_repo(path: Path) -> Optional[RepositoryBase]:
     # Check to see if this directory contains a .git file or directory
-    ret = git.check_git_path(path)
-    if ret is not None:
-        return git.get_repo(ret[0], ret[1])
+    git_repo = git.check_git_path(path)
+    if git_repo is not None:
+        return git_repo
 
     # Check to see if this directory looks like a git directory
     if git.is_git_dir(path):
