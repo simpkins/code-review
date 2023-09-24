@@ -198,15 +198,15 @@ def create_review(
             ap.error('--cached can only be used in git repositories')
         parent = args.parent_commit
         if parent is None:
-            parent = repo.get_default_diff_parent()
+            parent = repo.get_head_commit_name()
         return create_review_from_commits(repo, parent, child)
 
     parent = args.parent_commit
     child = args.child_commit
     if parent is None:
-        parent = repo.get_default_diff_parent()
-    if child is None:
-        child = repo.get_default_diff_child()
+        parent, child = repo.get_default_diff_endpoints()
+    elif child is None:
+        child = repo.get_working_dir_diff_name()
     return create_review_from_commits(repo, parent, child)
 
 

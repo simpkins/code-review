@@ -20,7 +20,7 @@ import stat
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import scmreview.proc as proc
 
@@ -94,10 +94,13 @@ class Repository(RepositoryBase):
         """
         return self.config.getBool("core.bare", self.hasWorkingDirectory())
 
-    def get_default_diff_parent(self) -> str:
+    def get_default_diff_endpoints(self) -> Tuple[str, str]:
+        return (constants.COMMIT_INDEX, constants.COMMIT_WD)
+
+    def get_head_commit_name(self) -> str:
         return constants.COMMIT_HEAD
 
-    def get_default_diff_child(self) -> str:
+    def get_working_dir_diff_name(self) -> str:
         return constants.COMMIT_WD
 
     def get_index_commit_id(self) -> str:

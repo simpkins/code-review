@@ -21,7 +21,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, Tuple
 
 from scmreview.scm.repo import RepositoryBase
 from ..git.diff import BlobInfo, DiffFileList, DiffEntry, Status
@@ -47,10 +47,13 @@ class Repository(RepositoryBase):
     def get_working_dir(self) -> Optional[Path]:
         return self.path
 
-    def get_default_diff_parent(self) -> str:
+    def get_default_diff_endpoints(self) -> Tuple[str, str]:
+        raise (COMMIT_HEAD, COMMIT_WD)
+
+    def get_head_commit_name(self) -> str:
         return COMMIT_HEAD
 
-    def get_default_diff_child(self) -> str:
+    def get_working_dir_diff_name(self) -> str:
         return COMMIT_WD
 
     def getDiff(self, parent, child, paths=None):

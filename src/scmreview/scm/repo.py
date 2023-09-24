@@ -17,7 +17,7 @@
 import abc
 import types
 from pathlib import Path
-from typing import BinaryIO, Optional, Type
+from typing import BinaryIO, Optional, Tuple, Type
 
 
 class RepositoryBase(abc.ABC):
@@ -66,11 +66,15 @@ class RepositoryBase(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_default_diff_parent(self) -> str:
+    def get_default_diff_endpoints(self) -> Tuple[str, str]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_default_diff_child(self) -> str:
+    def get_head_commit_name(self) -> str:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_working_dir_diff_name(self) -> str:
         raise NotImplementedError()
 
     def get_index_commit_id(self) -> Optional[str]:
